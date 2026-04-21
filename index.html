@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOODLE — A Culinary Guessing Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #f4ede0;
+    --cream-dark: #e8ddc8;
+    --ink: #1a1713;
+    --ink-soft: #3a332a;
+    --paprika: #c63d2f;
+    --mustard: #d4a017;
+    --olive: #6b7a3f;
+    --plum: #5c2e3b;
+    --match: #6b7a3f;
+    --close: #d4a017;
+    --miss: #8a8275;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 2rem 2rem;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(212, 160, 23, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(198, 61, 47, 0.06) 0%, transparent 40%);
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Decorative food illustrations floating in side margins */
+  .food-decor {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.38;
+  }
+
+  .food-decor svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* Left side — staggered horizontally so they zigzag */
+  .decor-fruit {
+    top: 3%;
+    left: 3%;
+    width: 160px; height: 160px;
+    animation: floatA 6s ease-in-out infinite;
+  }
+  .decor-vegetable {
+    top: 27%;
+    left: 0%;
+    width: 155px; height: 175px;
+    animation: floatB 7.2s ease-in-out infinite;
+    animation-delay: -1.8s;
+  }
+  .decor-meat {
+    top: 54%;
+    left: 4%;
+    width: 175px; height: 155px;
+    animation: floatA 7.8s ease-in-out infinite;
+    animation-delay: -0.9s;
+  }
+  .decor-grain {
+    top: 79%;
+    left: 0.5%;
+    width: 165px; height: 165px;
+    animation: floatB 6.4s ease-in-out infinite;
+    animation-delay: -3.1s;
+  }
+
+  /* Right side — staggered opposite direction */
+  .decor-dairy {
+    top: 4%;
+    right: 0.5%;
+    width: 165px; height: 165px;
+    animation: floatB 7.5s ease-in-out infinite;
+    animation-delay: -1.4s;
+  }
+  .decor-fish {
+    top: 29%;
+    right: 3.5%;
+    width: 210px; height: 130px;
+    animation: swim 8s ease-in-out infinite;
+  }
+  .decor-legume {
+    top: 55%;
+    right: 0.5%;
+    width: 160px; height: 170px;
+    animation: floatA 6.9s ease-in-out infinite;
+    animation-delay: -0.4s;
+  }
+  .decor-mixed {
+    top: 79%;
+    right: 3%;
+    width: 170px; height: 165px;
+    animation: floatB 7.2s ease-in-out infinite;
+    animation-delay: -2.2s;
+  }
+
+  @keyframes floatA {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-14px) rotate(3deg); }
+  }
+
+  @keyframes floatB {
+    0%, 100% { transform: translateY(0) rotate(4deg); }
+    50% { transform: translateY(-18px) rotate(-4deg); }
+  }
+
+  @keyframes swim {
+    0%, 100% { transform: translateX(0) rotate(-4deg); }
+    50% { transform: translateX(14px) rotate(4deg); }
+  }
+
+  @media (max-width: 1200px) {
+    .food-decor { display: none; }
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .issue-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--paprika);
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding: 0.4rem 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(3.5rem, 10vw, 6rem);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    font-style: italic;
+    margin-bottom: 0.3rem;
+  }
+
+  h1 .dot { color: var(--paprika); font-style: normal; }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 2rem 0;
+  }
+
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--ink);
+  }
+
+  .divider span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--cream-dark);
+    border: 1px solid var(--ink);
+  }
+
+  .guesses-count {
+    color: var(--paprika);
+    font-weight: 700;
+  }
+
+  .input-section {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+  }
+
+  #guess-input {
+    flex: 1;
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    padding: 1rem 1.25rem;
+    background: #fff;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  #guess-input:focus {
+    background: var(--cream-dark);
+    box-shadow: 4px 4px 0 var(--ink);
+    transform: translate(-2px, -2px);
+  }
+
+  #guess-input::placeholder {
+    color: var(--ink-soft);
+    opacity: 0.5;
+    font-style: italic;
+  }
+
+  #submit-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0 2rem;
+    background: var(--ink);
+    color: var(--cream);
+    border: 1px solid var(--ink);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  #submit-btn:hover:not(:disabled) {
+    background: var(--paprika);
+    border-color: var(--paprika);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  #submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .autocomplete {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 120px;
+    background: #fff;
+    border: 1px solid var(--ink);
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+  }
+
+  .autocomplete.show { display: block; }
+
+  .autocomplete-item {
+    padding: 0.6rem 1rem;
+    font-family: 'DM Serif Display', serif;
+    font-size: 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--cream-dark);
+    font-style: italic;
+  }
+
+  .autocomplete-item:hover,
+  .autocomplete-item.active {
+    background: var(--mustard);
+  }
+
+  .error-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--paprika);
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    min-height: 1rem;
+  }
+
+  .category-headers {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(8, 1fr);
+    gap: 4px;
+    margin-bottom: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .category-headers div {
+    text-align: center;
+    padding: 0.5rem 0.2rem;
+    line-height: 1.1;
+    border-bottom: 1px solid var(--ink);
+    position: relative;
+    cursor: help;
+    transition: color 0.15s;
+  }
+
+  .category-headers div[data-tooltip]:hover {
+    color: var(--paprika);
+  }
+
+  .category-headers div[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--cream);
+    padding: 0.6rem 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: none;
+    white-space: normal;
+    width: max-content;
+    max-width: 280px;
+    text-align: center;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 20;
+    box-shadow: 3px 3px 0 var(--paprika);
+  }
+
+  .category-headers div[data-tooltip]::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--ink);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 20;
+  }
+
+  .category-headers div[data-tooltip]:hover::after,
+  .category-headers div[data-tooltip]:hover::before {
+    opacity: 1;
+  }
+
+  .category-headers div:first-child {
+    text-align: left;
+    padding-left: 0.5rem;
+    cursor: default;
+  }
+
+  .guesses {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .guess-row {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(8, 1fr);
+    gap: 4px;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .guess-name {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 0.9rem 1rem;
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.25rem;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.01em;
+    height: 90px;
+  }
+
+  .cell {
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: center;
+    line-height: 1.15;
+    border: 1px solid var(--ink);
+    animation: flipIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  .cell:nth-child(2) { animation-delay: 0.05s; }
+  .cell:nth-child(3) { animation-delay: 0.10s; }
+  .cell:nth-child(4) { animation-delay: 0.15s; }
+  .cell:nth-child(5) { animation-delay: 0.20s; }
+  .cell:nth-child(6) { animation-delay: 0.25s; }
+  .cell:nth-child(7) { animation-delay: 0.30s; }
+  .cell:nth-child(8) { animation-delay: 0.35s; }
+  .cell:nth-child(9) { animation-delay: 0.40s; }
+
+  @keyframes flipIn {
+    from { transform: rotateX(90deg); opacity: 0; }
+    to { transform: rotateX(0); opacity: 1; }
+  }
+
+  .cell.match {
+    background: var(--match);
+    color: var(--cream);
+    border-color: var(--match);
+  }
+
+  .cell.close {
+    background: var(--mustard);
+    color: var(--ink);
+    border-color: var(--mustard);
+  }
+
+  .cell.miss {
+    background: var(--cream-dark);
+    color: var(--ink-soft);
+  }
+
+  .cell .icon {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+  }
+
+  .legend {
+    margin-top: 2.5rem;
+    padding: 1rem 0;
+    text-align: center;
+  }
+
+  .legend-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    color: var(--paprika);
+  }
+
+  .legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .legend-swatch {
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--ink);
+  }
+
+  #pantry-btn {
+    margin-top: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.65rem 1.75rem;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  #pantry-btn:hover {
+    background: var(--ink);
+    color: var(--cream);
+    box-shadow: 3px 3px 0 var(--paprika);
+    transform: translate(-1px, -1px);
+  }
+
+  #hint-btn {
+    margin-top: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.65rem 1.75rem;
+    background: transparent;
+    color: var(--mustard);
+    border: 1px solid var(--mustard);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  #hint-btn:hover:not(:disabled) {
+    background: var(--mustard);
+    color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    transform: translate(-1px, -1px);
+  }
+
+  #hint-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .legend-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .pantry-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 23, 19, 0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pantry-overlay.open { display: flex; }
+
+  .pantry-modal {
+    background: var(--cream);
+    border: 1px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--paprika);
+    max-width: 680px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pantry-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--ink);
+    flex-shrink: 0;
+  }
+
+  .pantry-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .pantry-sort-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.4rem 0.8rem;
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--cream-dark);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .pantry-sort-btn:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .pantry-sort-btn.active {
+    background: var(--ink);
+    color: var(--cream);
+    border-color: var(--ink);
+  }
+
+  .pantry-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.6rem;
+    font-style: italic;
+    letter-spacing: -0.02em;
+  }
+
+  .pantry-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--paprika);
+  }
+
+  .pantry-close {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink);
+    padding: 0.25rem 0.5rem;
+    transition: color 0.15s;
+  }
+
+  .pantry-close:hover { color: var(--paprika); }
+
+  .pantry-grid {
+    overflow-y: auto;
+    padding: 1.25rem 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .pantry-item {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1rem;
+    padding: 0.4rem 0.6rem;
+    border-left: 2px solid var(--cream-dark);
+    transition: border-color 0.15s;
+    color: var(--ink);
+  }
+
+  .pantry-item:hover {
+    border-left-color: var(--mustard);
+  }
+
+  .pantry-origin-group {
+    grid-column: 1 / -1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--cream);
+    background: var(--ink);
+    padding: 0.4rem 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .pantry-origin-group:first-child {
+    margin-top: 0;
+  }
+
+  .win-banner,
+  .lose-banner {
+    margin-top: 1.5rem;
+    padding: 2rem;
+    text-align: center;
+    border: 1px solid var(--ink);
+    animation: slideIn 0.5s;
+  }
+
+  .win-banner {
+    background: var(--match);
+    color: var(--cream);
+  }
+
+  .lose-banner {
+    background: var(--plum);
+    color: var(--cream);
+  }
+
+  .banner-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.5rem;
+    font-style: italic;
+    margin-bottom: 0.5rem;
+  }
+
+  .banner-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .banner-text strong { color: var(--mustard); }
+
+  .fun-fact-card {
+    margin-top: 1.5rem;
+    border: 1px solid var(--ink);
+    background: var(--cream-dark);
+    overflow: hidden;
+    animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .fun-fact-img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+    border-bottom: 1px solid var(--ink);
+    background: var(--cream-dark);
+  }
+
+  .fun-fact-img-placeholder {
+    width: 100%;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .fun-fact-body {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .fun-fact-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--paprika);
+    margin-bottom: 0.5rem;
+  }
+
+  .fun-fact-text {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  .fun-fact-loading {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    text-align: center;
+    padding: 2rem;
+  }
+
+  #new-game-btn {
+    margin-top: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.8rem 2rem;
+    background: var(--cream);
+    color: var(--ink);
+    border: 1px solid var(--cream);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  #new-game-btn:hover {
+    background: var(--mustard);
+    border-color: var(--mustard);
+  }
+
+  .share-btn {
+    margin-top: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.7rem 1.75rem;
+    background: transparent;
+    color: var(--cream);
+    border: 1px solid rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .share-btn:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: var(--cream);
+  }
+
+  .share-btn.copied {
+    border-color: var(--mustard);
+    color: var(--mustard);
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .credits {
+    margin-top: 0.8rem;
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--ink);
+  }
+
+  .credits .amp {
+    color: var(--paprika);
+    font-style: normal;
+  }
+
+  @media (max-width: 1000px) {
+    body { padding: 2rem 1.5rem; }
+    .cell { height: 75px; font-size: 0.7rem; }
+    .cell .icon { font-size: 1.2rem; }
+    .guess-name { height: 75px; font-size: 1.05rem; }
+    .category-headers { font-size: 0.6rem; }
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 1.5rem 0.75rem; }
+    .category-headers,
+    .guess-row {
+      grid-template-columns: 1.1fr repeat(8, 1fr);
+      gap: 2px;
+    }
+    .category-headers div { font-size: 0.5rem; padding: 0.3rem 0.1rem; }
+    .guess-name { font-size: 0.7rem; padding: 0.4rem 0.3rem; height: 55px; }
+    .cell { font-size: 0.55rem; padding: 0.15rem; height: 55px; }
+    .cell .icon { font-size: 0.9rem; margin-bottom: 2px; }
+    .input-section { flex-direction: column; }
+    .autocomplete { right: 0; }
+    .category-headers div[data-tooltip]::after {
+      white-space: normal;
+      width: 140px;
+      font-size: 0.6rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- FRUIT category -->
+<div class="food-decor decor-fruit" aria-hidden="true">
+  <svg viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Watermelon slice -->
+    <path d="M 20 120 Q 20 40, 80 40 Q 140 40, 140 120 Z" fill="#c63d2f" stroke="#1a1713" stroke-width="3"/>
+    <path d="M 28 120 Q 28 52, 80 52 Q 132 52, 132 120 Z" fill="#6b7a3f"/>
+    <path d="M 36 120 Q 36 62, 80 62 Q 124 62, 124 120 Z" fill="#e8524a"/>
+    <!-- Seeds -->
+    <ellipse cx="60" cy="95" rx="4" ry="6" fill="#1a1713" transform="rotate(-15 60 95)"/>
+    <ellipse cx="80" cy="85" rx="4" ry="6" fill="#1a1713"/>
+    <ellipse cx="100" cy="95" rx="4" ry="6" fill="#1a1713" transform="rotate(15 100 95)"/>
+    <ellipse cx="70" cy="108" rx="4" ry="6" fill="#1a1713" transform="rotate(-8 70 108)"/>
+    <ellipse cx="92" cy="110" rx="4" ry="6" fill="#1a1713" transform="rotate(10 92 110)"/>
+    <!-- Rind bottom -->
+    <rect x="20" y="118" width="120" height="10" rx="2" fill="#6b7a3f" stroke="#1a1713" stroke-width="3"/>
+    <!-- Grapes cluster -->
+    <circle cx="50" cy="32" r="8" fill="#5c2e3b" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="65" cy="26" r="8" fill="#5c2e3b" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="38" cy="22" r="8" fill="#5c2e3b" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="53" cy="16" r="8" fill="#7a3d54" stroke="#1a1713" stroke-width="2"/>
+    <path d="M 55 8 Q 60 2, 68 5" stroke="#6b7a3f" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- Orange slice -->
+    <circle cx="125" cy="35" r="22" fill="#d4a017" stroke="#1a1713" stroke-width="2.5"/>
+    <circle cx="125" cy="35" r="16" fill="#f2c94c" stroke="#1a1713" stroke-width="1.5"/>
+    <line x1="125" y1="19" x2="125" y2="51" stroke="#1a1713" stroke-width="1.2" opacity="0.5"/>
+    <line x1="109" y1="35" x2="141" y2="35" stroke="#1a1713" stroke-width="1.2" opacity="0.5"/>
+    <line x1="114" y1="24" x2="136" y2="46" stroke="#1a1713" stroke-width="1.2" opacity="0.5"/>
+    <line x1="136" y1="24" x2="114" y2="46" stroke="#1a1713" stroke-width="1.2" opacity="0.5"/>
+    <circle cx="125" cy="35" r="4" fill="#d4a017" stroke="#1a1713" stroke-width="1"/>
+  </svg>
+</div>
+
+<!-- VEGETABLE category -->
+<div class="food-decor decor-vegetable" aria-hidden="true">
+  <svg viewBox="0 0 155 175" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Big carrot -->
+    <path d="M 55 30 Q 45 70, 50 120 Q 52 140, 55 155 Q 58 140, 62 120 Q 68 70, 60 30 Z" fill="#d4a017" stroke="#1a1713" stroke-width="2.5"/>
+    <path d="M 52 55 Q 42 52, 38 45" stroke="#6b7a3f" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 51 70 Q 40 68, 36 60" stroke="#6b7a3f" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 62 55 Q 72 52, 76 44" stroke="#6b7a3f" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- Carrot top -->
+    <path d="M 57 30 Q 45 10, 38 5 Q 48 12, 55 20" fill="#6b7a3f" stroke="#1a1713" stroke-width="1.5"/>
+    <path d="M 58 28 Q 55 8, 52 2 Q 56 12, 58 22" fill="#6b7a3f" stroke="#1a1713" stroke-width="1.5"/>
+    <path d="M 59 30 Q 70 10, 76 5 Q 66 12, 60 20" fill="#6b7a3f" stroke="#1a1713" stroke-width="1.5"/>
+    <!-- Broccoli -->
+    <rect x="100" y="110" width="10" height="45" fill="#6b7a3f" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="105" cy="95" r="20" fill="#6b7a3f" stroke="#1a1713" stroke-width="2.5"/>
+    <circle cx="90" cy="105" r="14" fill="#6b7a3f" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="120" cy="105" r="14" fill="#6b7a3f" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="105" cy="80" r="12" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <circle cx="92" cy="93" r="10" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <circle cx="118" cy="93" r="10" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <!-- Tomato -->
+    <circle cx="30" cy="110" r="28" fill="#c63d2f" stroke="#1a1713" stroke-width="2.5"/>
+    <path d="M 22 83 Q 30 75, 38 83" stroke="#6b7a3f" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 30 82 L 30 75" stroke="#6b7a3f" stroke-width="2.5" stroke-linecap="round"/>
+    <ellipse cx="22" cy="105" rx="5" ry="8" fill="#fff" opacity="0.25" transform="rotate(-20 22 105)"/>
+  </svg>
+</div>
+
+<!-- MEAT category -->
+<div class="food-decor decor-meat" aria-hidden="true">
+  <svg viewBox="0 0 175 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Steak / drumstick -->
+    <!-- Bone handle -->
+    <rect x="18" y="95" width="14" height="50" rx="7" fill="#e8ddc8" stroke="#1a1713" stroke-width="2.5"/>
+    <circle cx="25" cy="95" r="10" fill="#e8ddc8" stroke="#1a1713" stroke-width="2.5"/>
+    <circle cx="25" cy="145" r="10" fill="#e8ddc8" stroke="#1a1713" stroke-width="2.5"/>
+    <!-- Meat part -->
+    <path d="M 25 95 Q 30 60, 70 50 Q 110 42, 130 60 Q 148 75, 140 100 Q 130 125, 100 130 Q 65 135, 40 118 Q 20 108, 25 95 Z" fill="#c63d2f" stroke="#1a1713" stroke-width="3"/>
+    <path d="M 40 100 Q 50 75, 80 68 Q 108 62, 120 80 Q 130 95, 115 110 Q 95 122, 70 118 Q 48 112, 40 100 Z" fill="#d4614f" stroke="#1a1713" stroke-width="1.5" opacity="0.7"/>
+    <!-- Fat streaks -->
+    <path d="M 60 75 Q 80 70, 100 78" stroke="#f4ede0" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+    <path d="M 75 90 Q 95 85, 112 92" stroke="#f4ede0" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+    <!-- Grilled marks -->
+    <path d="M 55 85 Q 90 78, 118 88" stroke="#1a1713" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+    <path d="M 50 100 Q 88 93, 120 103" stroke="#1a1713" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+    <!-- Sausage link -->
+    <path d="M 100 145 Q 115 130, 150 132 Q 170 133, 168 148 Q 166 162, 148 162 Q 118 162, 100 145 Z" fill="#c63d2f" stroke="#1a1713" stroke-width="2.5"/>
+    <ellipse cx="138" cy="147" rx="8" ry="4" fill="#fff" opacity="0.2"/>
+  </svg>
+</div>
+
+<!-- GRAIN category -->
+<div class="food-decor decor-grain" aria-hidden="true">
+  <svg viewBox="0 0 165 165" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Wheat stalk -->
+    <line x1="55" y1="160" x2="55" y2="20" stroke="#d4a017" stroke-width="4" stroke-linecap="round"/>
+    <!-- Wheat grains -->
+    <ellipse cx="55" cy="30" rx="10" ry="16" fill="#f2c94c" stroke="#1a1713" stroke-width="2" transform="rotate(0 55 30)"/>
+    <ellipse cx="40" cy="45" rx="9" ry="15" fill="#f2c94c" stroke="#1a1713" stroke-width="2" transform="rotate(-25 40 45)"/>
+    <ellipse cx="70" cy="45" rx="9" ry="15" fill="#f2c94c" stroke="#1a1713" stroke-width="2" transform="rotate(25 70 45)"/>
+    <ellipse cx="35" cy="65" rx="8" ry="14" fill="#f2c94c" stroke="#1a1713" stroke-width="2" transform="rotate(-35 35 65)"/>
+    <ellipse cx="75" cy="65" rx="8" ry="14" fill="#f2c94c" stroke="#1a1713" stroke-width="2" transform="rotate(35 75 65)"/>
+    <ellipse cx="30" cy="85" rx="7" ry="12" fill="#d4a017" stroke="#1a1713" stroke-width="2" transform="rotate(-40 30 85)"/>
+    <ellipse cx="80" cy="85" rx="7" ry="12" fill="#d4a017" stroke="#1a1713" stroke-width="2" transform="rotate(40 80 85)"/>
+    <!-- Bread loaf -->
+    <ellipse cx="120" cy="115" rx="40" ry="30" fill="#e8c58a" stroke="#1a1713" stroke-width="3"/>
+    <ellipse cx="120" cy="108" rx="40" ry="28" fill="#f2d8a8" stroke="#1a1713" stroke-width="3"/>
+    <path d="M 85 108 Q 95 92, 120 90 Q 145 92, 155 108" stroke="#d4a96a" stroke-width="2" fill="none" opacity="0.6"/>
+    <ellipse cx="108" cy="118" rx="4" ry="2.5" fill="#1a1713" opacity="0.2"/>
+    <ellipse cx="128" cy="115" rx="4" ry="2.5" fill="#1a1713" opacity="0.2"/>
+    <!-- Score line -->
+    <path d="M 100 95 Q 120 88, 140 95" stroke="#d4a96a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- DAIRY category -->
+<div class="food-decor decor-dairy" aria-hidden="true">
+  <svg viewBox="0 0 165 165" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Milk bottle -->
+    <path d="M 52 155 L 48 90 Q 45 75, 48 65 L 55 50 L 75 50 L 82 65 Q 85 75, 82 90 L 78 155 Z" fill="#fff" stroke="#1a1713" stroke-width="2.5"/>
+    <rect x="52" y="38" width="26" height="16" rx="4" fill="#fff" stroke="#1a1713" stroke-width="2.5"/>
+    <rect x="55" y="30" width="20" height="12" rx="4" fill="#e8ddc8" stroke="#1a1713" stroke-width="2"/>
+    <!-- Milk fill -->
+    <path d="M 50 120 L 50 155 L 80 155 L 80 120 Q 65 115, 50 120 Z" fill="#f4ede0" opacity="0.8"/>
+    <path d="M 48 90 Q 65 84, 82 90" stroke="#e8ddc8" stroke-width="1.5" fill="none"/>
+    <!-- Label -->
+    <rect x="52" y="95" width="26" height="22" rx="2" fill="#c63d2f" opacity="0.8"/>
+    <line x1="55" y1="101" x2="75" y2="101" stroke="#fff" stroke-width="1.5"/>
+    <line x1="55" y1="107" x2="75" y2="107" stroke="#fff" stroke-width="1.5"/>
+    <!-- Cheese wedge -->
+    <path d="M 100 80 L 155 65 L 158 130 L 100 130 Z" fill="#f2c94c" stroke="#1a1713" stroke-width="2.5"/>
+    <path d="M 100 80 L 155 65" stroke="#d4a017" stroke-width="2" opacity="0.6"/>
+    <!-- Cheese holes -->
+    <ellipse cx="118" cy="100" rx="7" ry="5" fill="#d4a017" stroke="#1a1713" stroke-width="1.5"/>
+    <ellipse cx="138" cy="110" rx="6" ry="4" fill="#d4a017" stroke="#1a1713" stroke-width="1.5"/>
+    <ellipse cx="128" cy="90" rx="5" ry="4" fill="#d4a017" stroke="#1a1713" stroke-width="1.5"/>
+    <!-- Ice cream scoop on top -->
+    <circle cx="140" cy="48" r="22" fill="#f4c4d4" stroke="#1a1713" stroke-width="2.5"/>
+    <circle cx="130" cy="42" r="16" fill="#fff" stroke="#1a1713" stroke-width="2"/>
+    <path d="M 118 70 L 108 105 L 152 105 Z" fill="#e8c58a" stroke="#1a1713" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M 122 78 L 148 78 M 118 88 L 152 88 M 116 98 L 154 98" stroke="#1a1713" stroke-width="1" opacity="0.4"/>
+  </svg>
+</div>
+
+<!-- FISH / SEAFOOD category -->
+<div class="food-decor decor-fish" aria-hidden="true">
+  <svg viewBox="0 0 210 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Big fish body -->
+    <path d="M 15 65 Q 50 25, 110 32 Q 155 38, 170 65 Q 155 92, 110 98 Q 50 105, 15 65 Z" fill="#d4a017" stroke="#1a1713" stroke-width="3"/>
+    <!-- Tail -->
+    <path d="M 170 65 L 200 38 L 192 65 L 200 92 Z" fill="#d4a017" stroke="#1a1713" stroke-width="3" stroke-linejoin="round"/>
+    <!-- Belly -->
+    <path d="M 30 65 Q 60 50, 110 52 Q 148 54, 162 65 Q 148 78, 110 80 Q 60 82, 30 65 Z" fill="#f2c94c" opacity="0.6"/>
+    <!-- Eye -->
+    <circle cx="55" cy="55" r="9" fill="#fff" stroke="#1a1713" stroke-width="2"/>
+    <circle cx="57" cy="54" r="5" fill="#1a1713"/>
+    <circle cx="59" cy="52" r="1.5" fill="#fff"/>
+    <!-- Scales -->
+    <path d="M 85 40 Q 90 48, 98 44" stroke="#1a1713" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M 105 38 Q 110 46, 118 42" stroke="#1a1713" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M 125 42 Q 130 50, 138 46" stroke="#1a1713" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M 80 55 Q 85 63, 93 59" stroke="#1a1713" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M 100 52 Q 105 60, 113 56" stroke="#1a1713" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M 120 55 Q 125 63, 133 59" stroke="#1a1713" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <!-- Fin -->
+    <path d="M 90 38 Q 100 18, 120 22 Q 110 35, 115 42" fill="#d4a017" stroke="#1a1713" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Small shrimp below -->
+    <path d="M 28 100 Q 35 88, 48 90 Q 60 92, 62 102 Q 60 112, 50 115 Q 38 116, 30 108 Q 25 104, 28 100 Z" fill="#f4c4d4" stroke="#1a1713" stroke-width="2"/>
+    <path d="M 50 115 Q 55 120, 52 126" stroke="#1a1713" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 42 116 Q 40 122, 36 126" stroke="#1a1713" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 28 100 Q 22 96, 18 100" stroke="#1a1713" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M 29 106 Q 22 104, 18 108" stroke="#1a1713" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- LEGUME category -->
+<div class="food-decor decor-legume" aria-hidden="true">
+  <svg viewBox="0 0 160 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Bean pod -->
+    <path d="M 30 140 Q 20 100, 35 65 Q 50 30, 80 20 Q 95 15, 100 28 Q 105 42, 90 60 Q 75 80, 70 110 Q 65 135, 75 155 Q 55 158, 30 140 Z" fill="#6b7a3f" stroke="#1a1713" stroke-width="3"/>
+    <!-- Pod ridge -->
+    <path d="M 55 28 Q 62 60, 60 100 Q 58 130, 68 155" stroke="#4a5830" stroke-width="2" fill="none" opacity="0.6"/>
+    <!-- Bean bumps showing inside -->
+    <ellipse cx="72" cy="42" rx="10" ry="8" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <ellipse cx="65" cy="68" rx="11" ry="9" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <ellipse cx="60" cy="96" rx="11" ry="9" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <ellipse cx="58" cy="124" rx="10" ry="8" fill="#7a9048" stroke="#1a1713" stroke-width="1.5"/>
+    <!-- Loose beans -->
+    <ellipse cx="125" cy="60" rx="18" ry="14" fill="#8b5a2b" stroke="#1a1713" stroke-width="2.5"/>
+    <path d="M 115 60 Q 125 55, 135 60" stroke="#6b3a1a" stroke-width="1.5" fill="none"/>
+    <ellipse cx="130" cy="100" rx="18" ry="14" fill="#8b5a2b" stroke="#1a1713" stroke-width="2.5"/>
+    <path d="M 120 100 Q 130 95, 140 100" stroke="#6b3a1a" stroke-width="1.5" fill="none"/>
+    <ellipse cx="118" cy="140" rx="18" ry="14" fill="#8b5a2b" stroke="#1a1713" stroke-width="2.5"/>
+    <path d="M 108 140 Q 118 135, 128 140" stroke="#6b3a1a" stroke-width="1.5" fill="none"/>
+    <!-- Lentil dots -->
+    <circle cx="110" cy="30" r="7" fill="#c4883a" stroke="#1a1713" stroke-width="1.5"/>
+    <circle cx="128" cy="25" r="7" fill="#c4883a" stroke="#1a1713" stroke-width="1.5"/>
+    <circle cx="145" cy="33" r="7" fill="#c4883a" stroke="#1a1713" stroke-width="1.5"/>
+  </svg>
+</div>
+
+<!-- MIXED category -->
+<div class="food-decor decor-mixed" aria-hidden="true">
+  <svg viewBox="0 0 170 165" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Bowl -->
+    <path d="M 15 75 Q 15 145, 85 148 Q 155 145, 155 75 Z" fill="#e8ddc8" stroke="#1a1713" stroke-width="3"/>
+    <ellipse cx="85" cy="75" rx="70" ry="22" fill="#f4ede0" stroke="#1a1713" stroke-width="3"/>
+    <!-- Bowl shadow/base -->
+    <ellipse cx="85" cy="148" rx="50" ry="10" fill="#d4c9b0" stroke="#1a1713" stroke-width="2"/>
+    <!-- Noodles -->
+    <path d="M 35 80 Q 50 68, 65 80 Q 80 92, 95 80 Q 110 68, 125 80" stroke="#f2c94c" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M 40 92 Q 55 80, 70 92 Q 85 104, 100 92 Q 115 80, 130 92" stroke="#f2c94c" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <!-- Toppings -->
+    <circle cx="58" cy="76" r="8" fill="#c63d2f" stroke="#1a1713" stroke-width="1.5"/>
+    <circle cx="95" cy="72" r="8" fill="#c63d2f" stroke="#1a1713" stroke-width="1.5"/>
+    <!-- Green onion -->
+    <path d="M 72 68 L 68 52 M 78 66 L 76 50 M 84 68 L 83 51" stroke="#6b7a3f" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Egg halves -->
+    <ellipse cx="118" cy="82" rx="12" ry="10" fill="#f4ede0" stroke="#1a1713" stroke-width="1.5"/>
+    <circle cx="118" cy="83" r="5" fill="#d4a017" stroke="#1a1713" stroke-width="1"/>
+    <!-- Steam lines -->
+    <path d="M 55 55 Q 58 46, 55 38" stroke="#8a8275" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <path d="M 75 50 Q 78 41, 75 33" stroke="#8a8275" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <path d="M 95 53 Q 98 44, 95 36" stroke="#8a8275" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <!-- Chopsticks -->
+    <line x1="130" y1="25" x2="100" y2="75" stroke="#8b5a2b" stroke-width="4" stroke-linecap="round"/>
+    <line x1="145" y1="22" x2="118" y2="70" stroke="#8b5a2b" stroke-width="4" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<div class="container">
+  <header>
+    <div class="issue-tag">№ 001 · DAILY EDITION</div>
+    <h1>Food<span class="dot"><svg viewBox="0 0 32 32" width="0.28em" height="0.28em" style="display:inline-block;vertical-align:-0.05em;overflow:visible"><circle cx="16" cy="18" r="13" fill="#c63d2f"/><ellipse cx="16" cy="18" rx="13" ry="13" fill="#c63d2f" stroke="#1a1713" stroke-width="2"/><ellipse cx="11" cy="14" rx="3.5" ry="2" fill="#fff" opacity="0.35" transform="rotate(-20 11 14)"/><path d="M 14 5 Q 16 0, 20 3" stroke="#6b7a3f" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M 16 5 L 16 7" stroke="#6b7a3f" stroke-width="2" stroke-linecap="round"/><path d="M 20 3 Q 24 1, 23 6" stroke="#6b7a3f" stroke-width="2" fill="none" stroke-linecap="round"/></svg></span>le</h1>
+    <div class="subtitle">A Culinary Deduction Game</div>
+  </header>
+
+  <div class="divider"><span>Guess the Dish</span></div>
+
+  <div class="status-bar">
+    <span>Attempts: <span class="guesses-count" id="guess-counter">0 / 8</span></span>
+    <span id="status-text">Awaiting your first guess</span>
+  </div>
+
+  <div class="input-section">
+    <input type="text" id="guess-input" placeholder="Name a food..." autocomplete="off">
+    <button id="submit-btn">Submit</button>
+    <div class="autocomplete" id="autocomplete"></div>
+  </div>
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="category-headers">
+    <div>Food</div>
+    <div data-tooltip="Japan · China · Korea · Vietnam · Thailand · India · Italy · France · Spain · UK · Poland · Greece · Ukraine · Turkey · USA · Mexico · Canada · Peru · Argentina · Egypt · Lebanon">Origin</div>
+    <div data-tooltip="Hot · Room · Cold">Temp</div>
+    <div data-tooltip="Solid · Semi · Liquid">State</div>
+    <div data-tooltip="Fruit · Vegetable · Meat · Fish · Grain · Dairy · Legume · Mixed">Group</div>
+    <div data-tooltip="Breakfast · Lunch · Dinner · Snack · Dessert · Anytime">Meal</div>
+    <div data-tooltip="Raw · Baked · Fried · Boiled · Grilled · Steamed · Fermented">Method</div>
+    <div data-tooltip="Spicy · Mild · Sour · Bitter · Umami · Sugary">Flavor</div>
+    <div data-tooltip="Sweet · Savory · Both">Sweet/Sav</div>
+  </div>
+
+  <div class="guesses" id="guesses"></div>
+
+  <div id="end-banner"></div>
+
+  <div class="legend">
+    <div class="legend-title">Legend</div>
+    <div class="legend-items">
+      <div class="legend-item">
+        <div class="legend-swatch" style="background: var(--match);"></div>
+        <span>Exact Match</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background: var(--mustard);"></div>
+        <span>Partial / Related</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background: var(--cream-dark);"></div>
+        <span>No Match</span>
+      </div>
+    </div>
+    <div class="legend-actions">
+      <button id="pantry-btn">📖 View All Possible Foods</button>
+      <button id="hint-btn">💡 Hint</button>
+    </div>
+  </div>
+
+  <!-- Hint modal -->
+  <div class="pantry-overlay" id="hint-overlay">
+    <div class="pantry-modal" style="max-width:420px;">
+      <div class="pantry-header">
+        <div>
+          <div class="pantry-title">Hint</div>
+          <div class="pantry-count">Continent of origin</div>
+        </div>
+        <button class="pantry-close" id="hint-close">✕</button>
+      </div>
+      <div style="padding:2rem 1.5rem; text-align:center;">
+        <div id="hint-continent" style="font-family:'DM Serif Display',serif;font-size:2rem;font-style:italic;margin-bottom:0.5rem;"></div>
+        <div id="hint-sub" style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pantry modal -->
+  <div class="pantry-overlay" id="pantry-overlay">
+    <div class="pantry-modal">
+      <div class="pantry-header">
+        <div>
+          <div class="pantry-title">The Pantry</div>
+          <div class="pantry-count" id="pantry-count"></div>
+        </div>
+        <button class="pantry-close" id="pantry-close">✕</button>
+      </div>
+      <div class="pantry-grid" id="pantry-grid"></div>
+    </div>
+  </div>
+
+  <footer>
+    Est. 2026 · A Game of Taste
+    <div class="credits">by Will P, Jeremiah Z, <span class="amp">&amp;</span> Elio T</div>
+  </footer>
+</div>
+
+<script>
+const FOODS = [
+  { name: "Sushi", origin: "Japan", temp: "cold", state: "solid", group: "fish", meal: "dinner", cookMethod: "raw", flavor: "umami", sweetSavory: "savory" },
+  { name: "Pizza", origin: "Italy", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "baked", flavor: "umami", sweetSavory: "savory" },
+  { name: "Tacos", origin: "Mexico", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Ramen", origin: "Japan", temp: "hot", state: "liquid", group: "grain", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Croissant", origin: "France", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "baked", flavor: "mild", sweetSavory: "both" },
+  { name: "Pad Thai", origin: "Thailand", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "fried", flavor: "sour", sweetSavory: "savory" },
+  { name: "Hamburger", origin: "USA", temp: "hot", state: "solid", group: "meat", meal: "lunch", cookMethod: "grilled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Gazpacho", origin: "Spain", temp: "cold", state: "liquid", group: "vegetable", meal: "lunch", cookMethod: "raw", flavor: "sour", sweetSavory: "savory" },
+  { name: "Tiramisu", origin: "Italy", temp: "cold", state: "semi", group: "dairy", meal: "dessert", cookMethod: "raw", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Pho", origin: "Vietnam", temp: "hot", state: "liquid", group: "meat", meal: "anytime", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Paella", origin: "Spain", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Ceviche", origin: "Peru", temp: "cold", state: "semi", group: "fish", meal: "lunch", cookMethod: "raw", flavor: "sour", sweetSavory: "savory" },
+  { name: "Churros", origin: "Spain", temp: "hot", state: "solid", group: "grain", meal: "dessert", cookMethod: "fried", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Kimchi", origin: "Korea", temp: "cold", state: "solid", group: "vegetable", meal: "anytime", cookMethod: "fermented", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Bagel", origin: "Poland", temp: "room", state: "solid", group: "grain", meal: "breakfast", cookMethod: "baked", flavor: "mild", sweetSavory: "both" },
+  { name: "Falafel", origin: "Egypt", temp: "hot", state: "solid", group: "legume", meal: "lunch", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Ice Cream", origin: "Italy", temp: "cold", state: "semi", group: "dairy", meal: "dessert", cookMethod: "raw", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Curry", origin: "India", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Hummus", origin: "Lebanon", temp: "cold", state: "semi", group: "legume", meal: "snack", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Pancakes", origin: "USA", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "fried", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Dumplings", origin: "China", temp: "hot", state: "solid", group: "mixed", meal: "anytime", cookMethod: "steamed", flavor: "umami", sweetSavory: "savory" },
+  { name: "Bruschetta", origin: "Italy", temp: "room", state: "solid", group: "grain", meal: "snack", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Miso Soup", origin: "Japan", temp: "hot", state: "liquid", group: "legume", meal: "anytime", cookMethod: "fermented", flavor: "umami", sweetSavory: "savory" },
+  { name: "Guacamole", origin: "Mexico", temp: "cold", state: "semi", group: "fruit", meal: "snack", cookMethod: "raw", flavor: "mild", sweetSavory: "savory" },
+  { name: "Cheesecake", origin: "Greece", temp: "cold", state: "solid", group: "dairy", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Fish and Chips", origin: "UK", temp: "hot", state: "solid", group: "fish", meal: "dinner", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Empanada", origin: "Argentina", temp: "hot", state: "solid", group: "mixed", meal: "snack", cookMethod: "baked", flavor: "mild", sweetSavory: "both" },
+  { name: "Baklava", origin: "Turkey", temp: "room", state: "solid", group: "grain", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Poutine", origin: "Canada", temp: "hot", state: "solid", group: "vegetable", meal: "snack", cookMethod: "fried", flavor: "umami", sweetSavory: "savory" },
+  { name: "Borscht", origin: "Ukraine", temp: "hot", state: "liquid", group: "vegetable", meal: "dinner", cookMethod: "boiled", flavor: "sour", sweetSavory: "savory" },
+  { name: "Bibimbap", origin: "Korea", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Tandoori Chicken", origin: "India", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Gelato", origin: "Italy", temp: "cold", state: "semi", group: "dairy", meal: "dessert", cookMethod: "raw", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Crepes", origin: "France", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "fried", flavor: "sugary", sweetSavory: "both" },
+  { name: "Shawarma", origin: "Turkey", temp: "hot", state: "solid", group: "meat", meal: "lunch", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Tom Yum", origin: "Thailand", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "sour", sweetSavory: "savory" },
+  { name: "Peking Duck", origin: "China", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "baked", flavor: "umami", sweetSavory: "savory" },
+  { name: "Moussaka", origin: "Greece", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Pierogi", origin: "Poland", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Schnitzel", origin: "Germany", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Pretzel", origin: "Germany", temp: "room", state: "solid", group: "grain", meal: "snack", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Burritos", origin: "Mexico", temp: "hot", state: "solid", group: "mixed", meal: "lunch", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Clam Chowder", origin: "USA", temp: "hot", state: "liquid", group: "fish", meal: "lunch", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Waffles", origin: "Belgium", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Goulash", origin: "Hungary", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Naan", origin: "India", temp: "hot", state: "solid", group: "grain", meal: "anytime", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Satay", origin: "Indonesia", temp: "hot", state: "solid", group: "meat", meal: "snack", cookMethod: "grilled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Poke Bowl", origin: "USA", temp: "cold", state: "solid", group: "fish", meal: "lunch", cookMethod: "raw", flavor: "umami", sweetSavory: "savory" },
+  { name: "Shakshuka", origin: "Egypt", temp: "hot", state: "semi", group: "vegetable", meal: "breakfast", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Enchiladas", origin: "Mexico", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "baked", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Lobster Bisque", origin: "France", temp: "hot", state: "liquid", group: "fish", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Churros", origin: "Spain", temp: "hot", state: "solid", group: "grain", meal: "dessert", cookMethod: "fried", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Spring Rolls", origin: "China", temp: "hot", state: "solid", group: "mixed", meal: "snack", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Beef Stew", origin: "France", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Fried Rice", origin: "China", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "fried", flavor: "umami", sweetSavory: "savory" },
+  { name: "Tempura", origin: "Japan", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Quiche", origin: "France", temp: "hot", state: "solid", group: "dairy", meal: "breakfast", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Lentil Soup", origin: "Lebanon", temp: "hot", state: "liquid", group: "legume", meal: "lunch", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Mac and Cheese", origin: "USA", temp: "hot", state: "solid", group: "dairy", meal: "dinner", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Onion Soup", origin: "France", temp: "hot", state: "liquid", group: "vegetable", meal: "lunch", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Tapioca", origin: "Brazil", temp: "hot", state: "semi", group: "grain", meal: "breakfast", cookMethod: "fried", flavor: "mild", sweetSavory: "both" },
+  { name: "Dolmades", origin: "Greece", temp: "room", state: "solid", group: "mixed", meal: "snack", cookMethod: "steamed", flavor: "sour", sweetSavory: "savory" },
+  { name: "Panna Cotta", origin: "Italy", temp: "cold", state: "semi", group: "dairy", meal: "dessert", cookMethod: "raw", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Jerk Chicken", origin: "Jamaica", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Butter Chicken", origin: "India", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Sauerkraut", origin: "Germany", temp: "cold", state: "solid", group: "vegetable", meal: "anytime", cookMethod: "fermented", flavor: "sour", sweetSavory: "savory" },
+  { name: "Mole", origin: "Mexico", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Risotto", origin: "Italy", temp: "hot", state: "semi", group: "grain", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Carbonara", origin: "Italy", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Gyoza", origin: "Japan", temp: "hot", state: "solid", group: "mixed", meal: "snack", cookMethod: "fried", flavor: "umami", sweetSavory: "savory" },
+  { name: "Injera", origin: "Ethiopia", temp: "room", state: "solid", group: "grain", meal: "anytime", cookMethod: "fried", flavor: "sour", sweetSavory: "savory" },
+  { name: "Biryani", origin: "India", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "baked", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Creme Brulee", origin: "France", temp: "cold", state: "semi", group: "dairy", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Tagine", origin: "Morocco", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Edamame", origin: "Japan", temp: "hot", state: "solid", group: "legume", meal: "snack", cookMethod: "steamed", flavor: "mild", sweetSavory: "savory" },
+  { name: "Tzatziki", origin: "Greece", temp: "cold", state: "semi", group: "dairy", meal: "snack", cookMethod: "raw", flavor: "mild", sweetSavory: "savory" },
+  { name: "Lobster Roll", origin: "USA", temp: "cold", state: "solid", group: "fish", meal: "lunch", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Bao Bun", origin: "China", temp: "hot", state: "solid", group: "grain", meal: "lunch", cookMethod: "steamed", flavor: "mild", sweetSavory: "savory" },
+  { name: "Arepas", origin: "Colombia", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "grilled", flavor: "mild", sweetSavory: "both" },
+  { name: "Okonomiyaki", origin: "Japan", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "fried", flavor: "umami", sweetSavory: "savory" },
+  { name: "Souvlaki", origin: "Greece", temp: "hot", state: "solid", group: "meat", meal: "lunch", cookMethod: "grilled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Chili Con Carne", origin: "USA", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Banh Mi", origin: "Vietnam", temp: "room", state: "solid", group: "mixed", meal: "lunch", cookMethod: "baked", flavor: "sour", sweetSavory: "savory" },
+  { name: "Osso Buco", origin: "Italy", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Laksa", origin: "Malaysia", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Congee", origin: "China", temp: "hot", state: "liquid", group: "grain", meal: "breakfast", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Calamari", origin: "Italy", temp: "hot", state: "solid", group: "fish", meal: "snack", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Tteokbokki", origin: "Korea", temp: "hot", state: "solid", group: "grain", meal: "snack", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Bobotie", origin: "South Africa", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "baked", flavor: "mild", sweetSavory: "both" },
+  { name: "Rendang", origin: "Indonesia", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Yakitori", origin: "Japan", temp: "hot", state: "solid", group: "meat", meal: "snack", cookMethod: "grilled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Croquettes", origin: "France", temp: "hot", state: "solid", group: "mixed", meal: "snack", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Adobo", origin: "Philippines", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "sour", sweetSavory: "savory" },
+  { name: "Pupusas", origin: "El Salvador", temp: "hot", state: "solid", group: "grain", meal: "anytime", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Gado Gado", origin: "Indonesia", temp: "room", state: "solid", group: "mixed", meal: "lunch", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Chow Mein", origin: "China", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "fried", flavor: "umami", sweetSavory: "savory" },
+  { name: "Profiteroles", origin: "France", temp: "cold", state: "solid", group: "dairy", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Spanakopita", origin: "Greece", temp: "hot", state: "solid", group: "mixed", meal: "snack", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Beef Wellington", origin: "UK", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "baked", flavor: "umami", sweetSavory: "savory" },
+  { name: "Sukiyaki", origin: "Japan", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "sugary", sweetSavory: "both" },
+  { name: "Mapo Tofu", origin: "China", temp: "hot", state: "semi", group: "legume", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Nasi Goreng", origin: "Indonesia", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "fried", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Cacio e Pepe", origin: "Italy", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Croque Monsieur", origin: "France", temp: "hot", state: "solid", group: "mixed", meal: "lunch", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Halo Halo", origin: "Philippines", temp: "cold", state: "semi", group: "mixed", meal: "dessert", cookMethod: "raw", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Roti Canai", origin: "Malaysia", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Peach Cobbler", origin: "USA", temp: "hot", state: "solid", group: "fruit", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Clafoutis", origin: "France", temp: "hot", state: "semi", group: "fruit", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Samosa", origin: "India", temp: "hot", state: "solid", group: "mixed", meal: "snack", cookMethod: "fried", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Meatballs", origin: "Italy", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Tonkatsu", origin: "Japan", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Soba", origin: "Japan", temp: "cold", state: "solid", group: "grain", meal: "lunch", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Ful Medames", origin: "Egypt", temp: "hot", state: "semi", group: "legume", meal: "breakfast", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Chimichurri Steak", origin: "Argentina", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "grilled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Beignets", origin: "France", temp: "hot", state: "solid", group: "grain", meal: "breakfast", cookMethod: "fried", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Okra Stew", origin: "Nigeria", temp: "hot", state: "liquid", group: "vegetable", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Saag Paneer", origin: "India", temp: "hot", state: "liquid", group: "vegetable", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Mooncake", origin: "China", temp: "room", state: "solid", group: "grain", meal: "dessert", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Mango Sticky Rice", origin: "Thailand", temp: "room", state: "solid", group: "fruit", meal: "dessert", cookMethod: "steamed", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Fish Tacos", origin: "Mexico", temp: "hot", state: "solid", group: "fish", meal: "lunch", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Duck Confit", origin: "France", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "baked", flavor: "umami", sweetSavory: "savory" },
+  { name: "Bouillabaisse", origin: "France", temp: "hot", state: "liquid", group: "fish", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Khachapuri", origin: "Georgia", temp: "hot", state: "solid", group: "dairy", meal: "breakfast", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Crab Cakes", origin: "USA", temp: "hot", state: "solid", group: "fish", meal: "dinner", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Pelmeni", origin: "Russia", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Oxtail Stew", origin: "Jamaica", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Tamales", origin: "Mexico", temp: "hot", state: "solid", group: "grain", meal: "anytime", cookMethod: "steamed", flavor: "mild", sweetSavory: "savory" },
+  { name: "Coq au Vin", origin: "France", temp: "hot", state: "liquid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Tibs", origin: "Ethiopia", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Mochi", origin: "Japan", temp: "room", state: "solid", group: "grain", meal: "dessert", cookMethod: "steamed", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Brigadeiro", origin: "Brazil", temp: "room", state: "solid", group: "dairy", meal: "dessert", cookMethod: "boiled", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Tom Kha Gai", origin: "Thailand", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "sour", sweetSavory: "savory" },
+  { name: "Chapati", origin: "India", temp: "hot", state: "solid", group: "grain", meal: "anytime", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Soondubu Jjigae", origin: "Korea", temp: "hot", state: "liquid", group: "legume", meal: "dinner", cookMethod: "boiled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Kofta", origin: "Turkey", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Madeleines", origin: "France", temp: "room", state: "solid", group: "grain", meal: "snack", cookMethod: "baked", flavor: "sugary", sweetSavory: "sweet" },
+  { name: "Poke Bowl", origin: "USA", temp: "cold", state: "solid", group: "fish", meal: "lunch", cookMethod: "raw", flavor: "umami", sweetSavory: "savory" },
+  { name: "Wiener Schnitzel", origin: "Austria", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "fried", flavor: "mild", sweetSavory: "savory" },
+  { name: "Pea Soup", origin: "Sweden", temp: "hot", state: "liquid", group: "legume", meal: "lunch", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Gratin Dauphinois", origin: "France", temp: "hot", state: "solid", group: "dairy", meal: "dinner", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Salted Caramel", origin: "France", temp: "room", state: "semi", group: "dairy", meal: "dessert", cookMethod: "boiled", flavor: "sugary", sweetSavory: "both" },
+  { name: "Yam Porridge", origin: "Nigeria", temp: "hot", state: "liquid", group: "vegetable", meal: "breakfast", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Perogies", origin: "Ukraine", temp: "hot", state: "solid", group: "grain", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Cocido", origin: "Spain", temp: "hot", state: "liquid", group: "mixed", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Kokotxas", origin: "Spain", temp: "hot", state: "liquid", group: "fish", meal: "dinner", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Cheeseburger", origin: "USA", temp: "hot", state: "solid", group: "meat", meal: "lunch", cookMethod: "grilled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Pita Bread", origin: "Lebanon", temp: "hot", state: "solid", group: "grain", meal: "anytime", cookMethod: "baked", flavor: "mild", sweetSavory: "savory" },
+  { name: "Peking Ravioli", origin: "China", temp: "hot", state: "solid", group: "mixed", meal: "dinner", cookMethod: "fried", flavor: "umami", sweetSavory: "savory" },
+  { name: "Yakitori", origin: "Japan", temp: "hot", state: "solid", group: "meat", meal: "snack", cookMethod: "grilled", flavor: "umami", sweetSavory: "savory" },
+  { name: "Clam Chowder", origin: "USA", temp: "hot", state: "liquid", group: "fish", meal: "lunch", cookMethod: "boiled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Baba Ghanoush", origin: "Lebanon", temp: "cold", state: "semi", group: "vegetable", meal: "snack", cookMethod: "grilled", flavor: "mild", sweetSavory: "savory" },
+  { name: "Kafta", origin: "Lebanon", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "grilled", flavor: "spicy", sweetSavory: "savory" },
+  { name: "Stuffed Grape Leaves", origin: "Turkey", temp: "room", state: "solid", group: "mixed", meal: "snack", cookMethod: "boiled", flavor: "sour", sweetSavory: "savory" },
+  { name: "Short Rib", origin: "USA", temp: "hot", state: "solid", group: "meat", meal: "dinner", cookMethod: "boiled", flavor: "umami", sweetSavory: "savory" },
+];
+
+
+const CONTINENT = {
+  "Japan": "Asia", "China": "Asia", "Korea": "Asia", "Vietnam": "Asia", "Thailand": "Asia",
+  "India": "Asia", "Malaysia": "Asia", "Indonesia": "Asia", "Philippines": "Asia",
+  "Italy": "Europe", "France": "Europe", "Spain": "Europe", "UK": "Europe", "Poland": "Europe",
+  "Greece": "Europe", "Ukraine": "Europe", "Turkey": "Europe", "Germany": "Europe",
+  "Austria": "Europe", "Sweden": "Europe", "Russia": "Europe", "Georgia": "Europe",
+  "USA": "N.America", "Mexico": "N.America", "Canada": "N.America", "Jamaica": "N.America",
+  "El Salvador": "N.America", "Colombia": "S.America",
+  "Peru": "S.America", "Argentina": "S.America", "Brazil": "S.America",
+  "Egypt": "Africa", "Ethiopia": "Africa", "Morocco": "Africa",
+  "Nigeria": "Africa", "South Africa": "Africa",
+  "Lebanon": "M.East"
+};
+
+const RELATED_GROUPS = {
+  "meat": ["fish"], "fish": ["meat"],
+  "fruit": ["vegetable"], "vegetable": ["fruit", "legume"],
+  "legume": ["grain", "vegetable"], "grain": ["legume"],
+  "dairy": [], "mixed": []
+};
+
+const RELATED_FLAVORS = {
+  "spicy": ["sugary", "umami"], "sugary": ["spicy", "umami"], "umami": ["spicy", "sugary"],
+  "sour": ["bitter"], "bitter": ["sour"],
+  "mild": []
+};
+
+const RELATED_COOK = {
+  "boiled": ["steamed"], "steamed": ["boiled"],
+  "fried": ["grilled"], "grilled": ["fried"],
+  "raw": ["fermented"], "fermented": ["raw"],
+  "baked": []
+};
+
+const ICONS = {
+  temp: { hot: '♨', cold: '❄', room: '~' },
+  state: { liquid: '≋', solid: '■', semi: '◐' },
+  group: { fruit: '🍎', vegetable: '🥬', meat: '🥩', grain: '🌾', dairy: '🥛', fish: '🐟', legume: '🫘', mixed: '◉' },
+  meal: { breakfast: '☀', lunch: '◑', dinner: '☽', snack: '•', dessert: '♥', anytime: '∞' },
+  cookMethod: { raw: '❄', baked: '◉', fried: '≋', boiled: '○', grilled: '≡', steamed: '☁', fermented: '※' },
+  flavor: { spicy: '🔥', mild: '~', sour: '⚡', bitter: '◐', umami: '✦', sugary: '🍬' },
+  sweetSavory: { sweet: '♥', savory: '◆', both: '◎' }
+};
+
+let target = null;
+let guesses = [];
+let gameOver = false;
+const MAX_GUESSES = 8;
+
+function startGame() {
+  target = FOODS[Math.floor(Math.random() * FOODS.length)];
+  guesses = [];
+  gameOver = false;
+  document.getElementById('guesses').innerHTML = '';
+  document.getElementById('end-banner').innerHTML = '';
+  document.getElementById('guess-input').value = '';
+  document.getElementById('guess-input').disabled = false;
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('error-msg').textContent = '';
+  updateStatus();
+  document.getElementById('guess-input').focus();
+}
+
+function updateStatus() {
+  document.getElementById('guess-counter').textContent = `${guesses.length} / ${MAX_GUESSES}`;
+  const statusText = document.getElementById('status-text');
+  if (gameOver) return;
+  const left = MAX_GUESSES - guesses.length;
+  if (guesses.length === 0) statusText.textContent = 'Awaiting your first guess';
+  else if (left === 1) statusText.textContent = 'Final guess — make it count';
+  else statusText.textContent = `${left} attempts remaining`;
+}
+
+// Countries that are geographically close to each other (neighboring or very nearby)
+const COUNTRY_NEIGHBORS = {
+  "Japan":        ["Korea", "China"],
+  "Korea":        ["Japan", "China"],
+  "China":        ["Japan", "Korea", "Vietnam", "India"],
+  "Vietnam":      ["China", "Thailand", "Malaysia"],
+  "Thailand":     ["Vietnam", "Malaysia", "Indonesia"],
+  "Malaysia":     ["Vietnam", "Thailand", "Indonesia", "Philippines"],
+  "Indonesia":    ["Malaysia", "Philippines", "Thailand"],
+  "Philippines":  ["Malaysia", "Indonesia"],
+  "India":        ["China", "Lebanon"],
+  "Lebanon":      ["India", "Egypt", "Turkey"],
+  "Turkey":       ["Lebanon", "Greece", "Georgia"],
+  "Georgia":      ["Turkey", "Russia"],
+  "Russia":       ["Georgia", "Ukraine", "Poland", "Sweden"],
+  "Ukraine":      ["Russia", "Poland"],
+  "Poland":       ["Ukraine", "Russia", "Germany", "Austria"],
+  "Germany":      ["Poland", "Austria", "France"],
+  "Austria":      ["Germany", "Poland"],
+  "France":       ["Germany", "Spain", "Italy", "UK"],
+  "Spain":        ["France", "Morocco"],
+  "Italy":        ["France", "Greece"],
+  "Greece":       ["Italy", "Turkey"],
+  "UK":           ["France"],
+  "Sweden":       ["Russia"],
+  "Morocco":      ["Spain", "Egypt", "Nigeria"],
+  "Egypt":        ["Morocco", "Lebanon", "Ethiopia", "Nigeria"],
+  "Ethiopia":     ["Egypt", "Nigeria", "South Africa"],
+  "Nigeria":      ["Morocco", "Egypt", "Ethiopia", "South Africa"],
+  "South Africa": ["Nigeria", "Ethiopia"],
+  "USA":          ["Canada", "Mexico", "Jamaica"],
+  "Canada":       ["USA"],
+  "Mexico":       ["USA", "El Salvador", "Colombia"],
+  "Jamaica":      ["USA", "Colombia"],
+  "El Salvador":  ["Mexico", "Colombia"],
+  "Colombia":     ["Mexico", "El Salvador", "Jamaica", "Peru", "Brazil"],
+  "Peru":         ["Colombia", "Argentina", "Brazil"],
+  "Argentina":    ["Peru", "Brazil"],
+  "Brazil":       ["Colombia", "Peru", "Argentina"],
+};
+
+function compareCategory(field, guessVal, targetVal) {
+  if (guessVal === targetVal) return 'match';
+  if (field === 'origin') {
+    // Same continent = close
+    if (CONTINENT[guessVal] && CONTINENT[guessVal] === CONTINENT[targetVal]) return 'close';
+    // Neighboring countries across continents also = close
+    if ((COUNTRY_NEIGHBORS[guessVal] || []).includes(targetVal)) return 'close';
+  }
+  if (field === 'group') {
+    if ((RELATED_GROUPS[guessVal] || []).includes(targetVal)) return 'close';
+  }
+  if (field === 'flavor') {
+    if ((RELATED_FLAVORS[guessVal] || []).includes(targetVal)) return 'close';
+  }
+  if (field === 'cookMethod') {
+    if ((RELATED_COOK[guessVal] || []).includes(targetVal)) return 'close';
+  }
+  if (field === 'meal') {
+    const CASUAL = new Set(["snack", "anytime", "dessert"]);
+    if (CASUAL.has(guessVal) && CASUAL.has(targetVal)) return 'close';
+  }
+  if (field === 'temp') {
+    if ((guessVal === 'hot' && targetVal === 'room') || (guessVal === 'room' && targetVal === 'hot')) return 'close';
+    if ((guessVal === 'cold' && targetVal === 'room') || (guessVal === 'room' && targetVal === 'cold')) return 'close';
+  }
+  if (field === 'state') {
+    if (guessVal === 'semi' || targetVal === 'semi') return 'close';
+  }
+  if (field === 'sweetSavory') {
+    if (guessVal === 'both' || targetVal === 'both') return 'close';
+  }
+  return 'miss';
+}
+
+const DIRECTION_HINT = {
+  temp: (g, t) => {
+    const order = { cold: 0, room: 1, hot: 2 };
+    if (order[g] < order[t]) return '↑';
+    if (order[g] > order[t]) return '↓';
+    return '';
+  }
+};
+
+function renderCell(field, guessVal, targetVal) {
+  const status = compareCategory(field, guessVal, targetVal);
+  const icon = ICONS[field] ? (ICONS[field][guessVal] || '') : '';
+  const hint = DIRECTION_HINT[field] ? DIRECTION_HINT[field](guessVal, targetVal) : '';
+  return `
+    <div class="cell ${status}" title="${field}: ${guessVal}">
+      <div class="icon">${icon}</div>
+      <div>${guessVal}${hint ? ' ' + hint : ''}</div>
+    </div>
+  `;
+}
+
+function renderGuess(guess) {
+  const row = document.createElement('div');
+  row.className = 'guess-row';
+  row.innerHTML = `
+    <div class="guess-name">${guess.name}</div>
+    ${renderCell('origin', guess.origin, target.origin)}
+    ${renderCell('temp', guess.temp, target.temp)}
+    ${renderCell('state', guess.state, target.state)}
+    ${renderCell('group', guess.group, target.group)}
+    ${renderCell('meal', guess.meal, target.meal)}
+    ${renderCell('cookMethod', guess.cookMethod, target.cookMethod)}
+    ${renderCell('flavor', guess.flavor, target.flavor)}
+    ${renderCell('sweetSavory', guess.sweetSavory, target.sweetSavory)}
+  `;
+  document.getElementById('guesses').appendChild(row);
+}
+
+function endGame(won) {
+  gameOver = true;
+  document.getElementById('guess-input').disabled = true;
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('hint-btn').disabled = true;
+  const banner = document.getElementById('end-banner');
+
+  const FOOD_INFO = {
+    "Sushi":               { fact: "Sushi originally meant fermented fish preserved in rice — the rice was thrown away before eating. It wasn't until the 19th century that fresh fish on hand-pressed rice became the norm in Tokyo.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Sushi_platter.jpg/1280px-Sushi_platter.jpg" },
+    "Pizza":               { fact: "The world's first pizzeria, Antica Pizzeria Port'Alba, opened in Naples in 1830 and is still serving pizza today. Tomato sauce only became a pizza staple after tomatoes were declared non-poisonous in the 18th century.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Eq_it-na_pizza-margherita_sep2005_sml.jpg/1280px-Eq_it-na_pizza-margherita_sep2005_sml.jpg" },
+    "Tacos":               { fact: "The word 'taco' predates Mexican cuisine entirely — 18th-century Mexican silver miners used the word for small explosive charges wrapped in paper. The folded tortilla version borrowed the name for its similar shape.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/001_Tacos_de_carnitas%2C_carne_asada_y_al_pastor.jpg/1280px-001_Tacos_de_carnitas%2C_carne_asada_y_al_pastor.jpg" },
+    "Ramen":               { fact: "Ramen is actually a Japanese adaptation of Chinese wheat noodles, but Japan has transformed it into a national obsession with over 10,000 ramen restaurants in Tokyo alone. There's even a Ramen Museum in Yokohama.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Shoyu_ramen%2C_at_Kasukabe_Station_%28ja%29%2C_Saitama%2C_Japan.jpg/1280px-Shoyu_ramen%2C_at_Kasukabe_Station_%28ja%29%2C_Saitama%2C_Japan.jpg" },
+    "Croissant":           { fact: "Despite being France's most iconic pastry, the croissant was invented in Vienna, Austria. French officers brought it back after the siege of Vienna in 1683, and a Viennese baker opened Paris's first croissant shop in 1838.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Croissant%2C_Rennes.jpg/1280px-Croissant%2C_Rennes.jpg" },
+    "Pad Thai":            { fact: "Pad Thai was invented in the 1930s as part of a government campaign to create a Thai national identity — and to reduce rice consumption during a shortage. The noodle dish was actively promoted through street food stalls.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Singaporean_pad_thai.jpg/1280px-Singaporean_pad_thai.jpg" },
+    "Hamburger":           { fact: "The hamburger gets its name from Hamburg, Germany, where 19th-century sailors ate minced beef patties. When German immigrants brought it to America, a St. Louis vendor is believed to have first served it between two slices of bread in 1904.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Burger_King_Angus_Bacon_%26_Cheese_Steak_Burger.jpg/1280px-Burger_King_Angus_Bacon_%26_Cheese_Steak_Burger.jpg" },
+    "Gazpacho":            { fact: "Gazpacho predates tomatoes in Spain — the original version was just bread, olive oil, garlic, and vinegar. Tomatoes weren't added until the 19th century, which means the cold red soup we know today is actually a relatively recent invention.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Gazpacho_-_stonesoup.jpg/1280px-Gazpacho_-_stonesoup.jpg" },
+    "Tiramisu":            { fact: "Tiramisu is younger than you might think — it was invented in the 1960s at a restaurant in Treviso, Italy. The name means 'pick me up' in Italian, a nod to the espresso and sugar that give it its energising kick.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Tiramisu_-_Raffaele_Diomede.jpg/1280px-Tiramisu_-_Raffaele_Diomede.jpg" },
+    "Pho":                 { fact: "Pho is so central to Vietnamese identity that during wartime rationing, the government strictly limited how many bowls a person could buy per day. The dish is believed to have originated in the early 20th century blending French and Chinese culinary influences.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Pho_with_beef.jpg/1280px-Pho_with_beef.jpg" },
+    "Paella":              { fact: "Authentic Valencian paella contains rabbit, chicken, and snails — not seafood. The seafood version was a later coastal adaptation, and Valencians consider adding chorizo to paella a serious culinary offense.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Paella_01.jpg/1280px-Paella_01.jpg" },
+    "Ceviche":             { fact: "Ceviche doesn't actually cook the fish with heat — the citric acid in lime juice denatures the proteins, mimicking the effect of cooking. Ancient Peruvians made an early version using fermented passion fruit juice thousands of years ago.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Cebiche_de_pescado.jpg/1280px-Cebiche_de_pescado.jpg" },
+    "Churros":             { fact: "Churros were originally invented by Spanish shepherds who needed a simple bread they could fry over an open fire. The star-shaped ridges aren't decorative — they increase the surface area so the dough cooks evenly all the way through.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/ChurrosFS.JPG/1280px-ChurrosFS.JPG" },
+    "Kimchi":              { fact: "Koreans eat approximately 1.85 million tonnes of kimchi per year — roughly 40 pounds per person. There are over 200 documented varieties of kimchi, and in 2013 UNESCO recognised the tradition of making it as an Intangible Cultural Heritage.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Kimchi_at_a_Korean_restaurant.jpg/1280px-Kimchi_at_a_Korean_restaurant.jpg" },
+    "Bagel":               { fact: "Bagels are boiled before baking, which is what gives them their chewy, dense interior and glossy crust. The word 'bagel' comes from the Yiddish 'beygl', and the first written record of the bagel dates to 1610 in Kraków, Poland.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Bagel-Plain-Alt.jpg/1280px-Bagel-Plain-Alt.jpg" },
+    "Falafel":             { fact: "Falafel likely originated in Egypt, where it was made from fava beans by Coptic Christians as a meat substitute during Lent. When the dish spread through the Middle East, chickpeas largely replaced fava beans outside Egypt.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Falafels.jpg/1280px-Falafels.jpg" },
+    "Ice Cream":           { fact: "Ice cream was once so expensive that only royalty could afford it — King Charles I of England reportedly paid his chef £500 a year to keep the recipe secret. Widespread availability only came after the invention of mechanical refrigeration.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Ice_cream_with_whipped_cream%2C_chocolate_syrup%2C_and_a_wafer_%28Wouter_Hagens%29.jpg/1280px-Ice_cream_with_whipped_cream%2C_chocolate_syrup%2C_and_a_wafer_%28Wouter_Hagens%29.jpg" },
+    "Curry":               { fact: "The word 'curry' doesn't actually exist in any Indian language — it was coined by British colonisers as a catch-all term for South Asian spiced dishes. In India, each dish has its own specific name like dal, korma, or vindaloo.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Chicken_curry.jpg/1280px-Chicken_curry.jpg" },
+    "Hummus":              { fact: "Hummus means simply 'chickpeas' in Arabic — the full name of the dip is 'hummus bi tahini' (chickpeas with sesame). In 2008, Lebanon broke the world record for the largest plate of hummus, weighing over 2 tonnes.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Hummus_from_The_Nile.jpg/1280px-Hummus_from_The_Nile.jpg" },
+    "Pancakes":            { fact: "Pancakes are one of humanity's oldest foods — ancient Greeks and Romans ate flat cakes made of wheat, olive oil, honey, and curdled milk. Ötzi the Iceman, who died 5,300 years ago, had einkorn wheat pancake remnants in his stomach.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Banana_Pancakes_%285099982247%29.jpg/1280px-Banana_Pancakes_%285099982247%29.jpg" },
+    "Dumplings":           { fact: "Chinese legend credits a physician named Zhang Zhongjing with inventing dumplings in the 3rd century AD — he made them to warm the ears of freezing villagers during winter. The Chinese New Year tradition of eating dumplings represents wealth because they're shaped like ancient gold ingots.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Xiaolongbao-breakfast.jpg/1280px-Xiaolongbao-breakfast.jpg" },
+    "Bruschetta":          { fact: "Bruschetta began as a practical way for Italian olive oil producers to taste their freshly pressed oil — rubbing raw garlic on toasted bread and drizzling new oil over it gave the purest flavour. The word comes from 'bruscare', meaning to roast over coals.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Bruschetta_with_tomato.jpg/1280px-Bruschetta_with_tomato.jpg" },
+    "Miso Soup":           { fact: "Miso paste is a living food — it contains active cultures that continue fermenting over time, deepening in flavour for years. Some premium Japanese misos are aged for three years or more, developing complexity similar to fine aged cheese.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Miso_soup.jpg/1280px-Miso_soup.jpg" },
+    "Guacamole":           { fact: "The Aztecs called it 'ahuacamolli' — a combination of 'ahuacatl' (avocado) and 'molli' (sauce). Avocado comes from the same Nahuatl word as a particular anatomical feature, which the Spanish were too modest to repeat, so they renamed the fruit.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Guacamole.jpg/1280px-Guacamole.jpg" },
+    "Cheesecake":          { fact: "Cheesecake is so old that ancient Greek athletes ate it at the first Olympic Games in 776 BC as an energy source. The Romans spread versions of it across Europe, making cheesecake one of the world's earliest recorded dessert recipes.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/cinquanta/Cheesecake_with_strawberry_topping.jpg/1280px-Cheesecake_with_strawberry_topping.jpg" },
+    "Fish and Chips":      { fact: "Fish and chips saved Britain during World War II — it was one of the very few foods not subject to rationing because the government feared it was too central to working-class morale to restrict. Winston Churchill called it 'good companions'.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Fish_and_chips_blackpool.jpg/1280px-Fish_and_chips_blackpool.jpg" },
+    "Empanada":            { fact: "The word 'empanada' comes from the Spanish 'empanar', meaning to wrap in bread. Empanadas were originally created as portable meals for Spanish pilgrims and soldiers, essentially the medieval equivalent of a sandwich.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Empanadas_fritas_2.jpg/1280px-Empanadas_fritas_2.jpg" },
+    "Baklava":             { fact: "Baklava's exact origin is fiercely disputed between Turkey, Greece, Lebanon, and several other countries. What's agreed is that paper-thin phyllo pastry techniques were perfected in the Ottoman palace kitchens of Topkapi in the 15th century.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Baklava_Dici.jpg/1280px-Baklava_Dici.jpg" },
+    "Poutine":             { fact: "Poutine was invented in rural Quebec in the 1950s — the exact origin is disputed between several diners, but the name likely comes from Québécois slang for 'mess'. It went from being a greasy-spoon embarrassment to Canada's proudest culinary export in just decades.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Poutine_raw2.jpg/1280px-Poutine_raw2.jpg" },
+    "Borscht":             { fact: "Borscht is so beloved in Eastern Europe that the term 'Borscht Belt' describes a region of New York where Jewish immigrants from Russia and Ukraine built summer resorts — and served endless borscht. It's been a staple for over 1,000 years.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Borscht_served.jpg/1280px-Borscht_served.jpg" },
+    "Bibimbap":            { fact: "Bibimbap translates to 'mixed rice', and that's exactly the point — the whole dish is meant to be vigorously stirred before eating. It originated as a way to use up leftover side dishes, and in Korean royal courts it was served as an elaborate ceremonial meal.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Dolsot-bibimbap.jpg/1280px-Dolsot-bibimbap.jpg" },
+    "Tandoori Chicken":    { fact: "Tandoori chicken was popularised not in India but in New Delhi restaurants after Partition in 1947, when Punjabi refugees brought their clay tandoor ovens south. The vivid red colour traditionally comes from dried Kashmiri chillies, not food colouring.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Chicken_Tandoori.jpg/1280px-Chicken_Tandoori.jpg" },
+    "Gelato":              { fact: "Gelato has less air churned into it than regular ice cream — typically 20–30% air compared to up to 50% in American ice cream. It's also served warmer, which is why it has that characteristically soft, dense, intensely flavoured texture.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Gelato_semifreddo.jpg/1280px-Gelato_semifreddo.jpg" },
+    "Crepes":              { fact: "Crepes are so thin that the batter is deliberately made with very little flour — the liquid to flour ratio is the reverse of a pancake. In Brittany, where they originated, savoury buckwheat galettes and sweet white-flour crepes are considered entirely different foods.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/20150125_crepes_pan.jpg/1280px-20150125_crepes_pan.jpg" },
+    "Shawarma":            { fact: "Shawarma is a descendant of the Ottoman doner kebab — the vertical rotating spit technique was invented in 19th-century Turkey and then spread across the Middle East. The word 'shawarma' itself comes from the Turkish 'çevirme', meaning turning.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Shawarma_Palace_Ottawa.jpg/1280px-Shawarma_Palace_Ottawa.jpg" },
+    "Tom Yum":             { fact: "Tom yum's signature flavour comes from a combination of lemongrass, galangal, and kaffir lime leaves — all ingredients that don't actually taste like lime or lemon but create a unique citrusy aroma. Studies have found its ingredients have potent anti-cancer properties.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Tom_yum_kung_-_Thai_food.jpg/1280px-Tom_yum_kung_-_Thai_food.jpg" },
+    "Peking Duck":         { fact: "Authentic Peking duck requires the skin to be inflated away from the meat using air — originally blown in by mouth, now done with a pump. The duck is then lacquered with a maltose syrup and air-dried for up to 24 hours before roasting.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Peking_duck_pancakes.jpg/1280px-Peking_duck_pancakes.jpg" },
+    "Moussaka":            { fact: "The modern layered version of moussaka was essentially invented in the 1920s by Nikolaos Tselementes, a Greek chef trained in France who added béchamel sauce to an older Middle Eastern dish. The pre-Tselementes version had no white sauce at all.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Moussaka_2_550.jpg/1280px-Moussaka_2_550.jpg" },
+    "Pierogi":             { fact: "Pierogi are so important to Polish culture that they have their own patron saint — Saint Hyacinth, who allegedly saved the people of Krakow from famine using pierogi. Every Polish city has its own local filling tradition passed down through generations.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Pierogi_z_miesem.jpg/1280px-Pierogi_z_miesem.jpg" },
+    "Schnitzel":           { fact: "Wiener Schnitzel is legally protected in Austria — by law, it must be made from veal to be called 'Wiener Schnitzel'. The pork version must be called 'Schnitzel Wiener Art' (Schnitzel Vienna-style), a distinction Austrians take extremely seriously.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Wiener-Schnitzel02.jpg/1280px-Wiener-Schnitzel02.jpg" },
+    "Pretzel":             { fact: "The looped shape of a pretzel represents arms crossed in prayer, and they were originally made by monks as rewards for children who learned their prayers. The term 'tying the knot' may derive from the medieval Germanic tradition of breaking a pretzel during wedding ceremonies.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Pretzel_-_2.jpg/1280px-Pretzel_-_2.jpg" },
+    "Burritos":            { fact: "The word 'burrito' means 'little donkey' in Spanish — one theory is that the rolled tortilla resembles the bedrolls and bags that donkeys carried. Despite being a staple of Mexican-American food, burritos are largely unknown in most of Mexico.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Burritos_-_Authentic_%2815536451945%29.jpg/1280px-Burritos_-_Authentic_%2815536451945%29.jpg" },
+    "Clam Chowder":        { fact: "New England and Manhattan clam chowder have been rivals for so long that in 1939, a Maine legislator introduced a bill to make it illegal to put tomatoes in clam chowder. The bill failed, but the debate between the creamy and tomato-based versions rages on.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/NewEnglandClamChowder.jpg/1280px-NewEnglandClamChowder.jpg" },
+    "Waffles":             { fact: "Waffles were originally cooked between two flat iron plates, but a Belgian blacksmith added the now-iconic grid pattern in the 13th century — originally to make them crispier and to reduce the amount of batter needed. Belgian waffles as we know them were introduced to America at the 1964 World's Fair.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Waffles_with_strawberries.jpg/1280px-Waffles_with_strawberries.jpg" },
+    "Goulash":             { fact: "Goulash was the original fast food of the Hungarian plains — cowboys called 'gulyás' slow-cooked beef with paprika and dried it into dense cakes they could rehydrate with water on cattle drives. The word 'goulash' literally means 'herdsman's meat'.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Goulash_%28Hungarian_dish%29.jpg/1280px-Goulash_%28Hungarian_dish%29.jpg" },
+    "Naan":                { fact: "Naan is leavened with yeast or yogurt and cooked in a scorching tandoor oven, which reaches over 480°C — hot enough to cook a flatbread in under 90 seconds. The oldest documented reference to naan appears in the notes of an Indo-Persian poet in 1300 AD.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/NAN_Premier_Inn_Metrocentre.jpg/1280px-NAN_Premier_Inn_Metrocentre.jpg" },
+    "Satay":               { fact: "Satay is believed to have originated in Java when Arab and Indian traders introduced kebab-style cooking techniques in the 19th century. Today it's claimed by Indonesia, Malaysia, Thailand, and Singapore — each with their own distinct sauce and skewer tradition.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Sate_ayam_Madura_1.jpg/1280px-Sate_ayam_Madura_1.jpg" },
+    "Poke Bowl":           { fact: "Poke (pronounced poh-kay) has been eaten by Native Hawaiians for centuries — originally just raw reef fish seasoned with sea salt and seaweed. The sesame oil, soy sauce, and avocado-topped bowl version is a modern fusion invention from the 1970s.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Poke_bowl_Hawaii.jpg/1280px-Poke_bowl_Hawaii.jpg" },
+    "Shakshuka":           { fact: "Shakshuka's origins are disputed between Tunisia, Libya, and Yemen — but it became Israel's beloved breakfast through the wave of North African Jewish immigrants in the 1950s. The name comes from the Arabic/Berber for 'a mixture' or 'all mixed up'.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Shakshuka_by_Kasper_Christensen.jpg/1280px-Shakshuka_by_Kasper_Christensen.jpg" },
+    "Enchiladas":          { fact: "Enchiladas date back to Aztec times — Aztec people rolling tortillas around fish was documented by Spanish conquistadors. The word 'enchilar' means 'to season with chilli', and the dish was one of the first Mexican foods ever described in writing by Europeans.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Enchiladas.jpg/1280px-Enchiladas.jpg" },
+    "Lobster Bisque":      { fact: "Lobster was once so plentiful in New England that it was considered poor people's food and fed to prisoners and servants. Laws were passed limiting how often employers could serve lobster to their workers — today the same dish commands premium restaurant prices.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Lobster_Bisque_%28281662520%29.jpg/1280px-Lobster_Bisque_%28281662520%29.jpg" },
+    "Spring Rolls":        { fact: "Spring rolls were originally eaten at the start of spring as part of Chinese New Year celebrations — hence the name. The filling traditionally included the first vegetables of the spring harvest, making them a seasonal dish before becoming an everyday favourite.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Cha_gio.jpg/1280px-Cha_gio.jpg" },
+    "Beef Stew":           { fact: "Beef stew may be the world's oldest recipe — a clay tablet from ancient Babylon dating to 1700 BC contains what archaeologists believe is a stew recipe. The principle of slow-cooking tough cuts of meat in liquid with vegetables has been independently discovered by nearly every culture on Earth.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Beef_stew_original.jpg/1280px-Beef_stew_original.jpg" },
+    "Fried Rice":          { fact: "Fried rice was invented as a way to use up leftover rice — fresh rice is too moist and clumps together in the wok. Day-old refrigerated rice has dried out enough to fry into separate grains. This dish, born from frugality, is now one of the most popular on Earth.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Fried_rice_2.jpg/1280px-Fried_rice_2.jpg" },
+    "Tempura":             { fact: "Tempura was introduced to Japan by Portuguese Jesuit missionaries in the 16th century — the battered, fried vegetables they ate during Lent (the 'Quatuor anni tempora' fasting periods) gave the dish its name. Japan refined the technique into an art form.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Tempura_Deluxe_-_jtbaker57_%28Flickr%29.jpg/1280px-Tempura_Deluxe_-_jtbaker57_%28Flickr%29.jpg" },
+    "Quiche":              { fact: "Quiche Lorraine originally contained no cheese — just cream, eggs, and lardons in a pastry shell. Cheese was added later by cooks outside Lorraine, and the French from that region still insist the 'authentic' version remains cheese-free.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Quiche_Lorraine.jpg/1280px-Quiche_Lorraine.jpg" },
+    "Lentil Soup":         { fact: "Lentils are one of the first crops ever cultivated by humans — archaeological evidence shows they were being farmed in the Near East over 13,000 years ago. The biblical 'mess of pottage' for which Esau sold his birthright was almost certainly lentil soup.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Lentil_soup.jpg/1280px-Lentil_soup.jpg" },
+    "Mac and Cheese":      { fact: "Thomas Jefferson is often credited with popularising mac and cheese in America after eating it in Paris, but it was actually his enslaved chef James Hemings who brought the recipe back and prepared it for guests. Jefferson just took the credit.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Macaroni_and_cheese_%282%29.jpg/1280px-Macaroni_and_cheese_%282%29.jpg" },
+    "Onion Soup":          { fact: "French onion soup's incredibly deep flavour comes entirely from patience — slowly caramelising onions takes 45–60 minutes of continuous stirring. The soup became fashionable in 18th-century Parisian market restaurants, where workers would eat it at dawn after a night shift.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Onion_Soup.jpg/1280px-Onion_Soup.jpg" },
+    "Tapioca":             { fact: "Tapioca comes from cassava, a root that contains cyanide in its raw state — traditional processing methods of fermenting, soaking, and cooking neutralise the toxin. Indigenous Amazonian peoples developed these detoxification techniques thousands of years ago.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Tapioca_crepe_%28s%C3%A3o_paulo%2C_brazil%29.jpg/1280px-Tapioca_crepe_%28s%C3%A3o_paulo%2C_brazil%29.jpg" },
+    "Dolmades":            { fact: "The grape leaf wrapping technique in dolmades dates back to the ancient Greeks, who used fig leaves. When the Ottomans later dominated the region, they popularised the grape leaf version and spread it across their vast empire from Greece to the Middle East.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Stuffed_grape_leaves_%28dolmades%29.jpg/1280px-Stuffed_grape_leaves_%28dolmades%29.jpg" },
+    "Panna Cotta":         { fact: "Panna cotta only became widely known outside Piedmont after the 1990s — it was a peasant dessert for most of its existence, made from cream that would otherwise spoil. Its dramatic yet simple elegance made it a favourite of modernist chefs worldwide.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Panna_cotta_with_raspberry_sauce.jpg/1280px-Panna_cotta_with_raspberry_sauce.jpg" },
+    "Jerk Chicken":        { fact: "Jerk seasoning was developed by the Maroons — escaped enslaved Africans in Jamaica — who smoked wild boar in remote Blue Mountain hideouts to avoid detection by the scent of cooking fires. The technique and spices were later adapted to chicken.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Jerk_chicken_on_the_grill.jpg/1280px-Jerk_chicken_on_the_grill.jpg" },
+    "Butter Chicken":      { fact: "Butter chicken was essentially invented by accident in 1950s Delhi — chef Kundan Lal Gujral mixed leftover dry tandoori chicken into a rich tomato and butter sauce to revive it. His restaurant Moti Mahal became legendary, and the dish conquered the world.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Butter_Chicken.jpg/1280px-Butter_Chicken.jpg" },
+    "Sauerkraut":          { fact: "Sauerkraut may have been invented in China, not Germany — workers building the Great Wall over 2,000 years ago fermented cabbage in rice wine. The technique likely spread westward along the Silk Road, reaching Central Europe long before Germany claimed it.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Sauerkraut_2007.jpg/1280px-Sauerkraut_2007.jpg" },
+    "Mole":                { fact: "A complex mole negro can contain over 30 ingredients including dried chilies, chocolate, raisins, pumpkin seeds, plantain, and even charred tortillas. Legend says it was invented by Mexican nuns who spent days preparing it for a visiting bishop.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Mole_sauce.jpg/1280px-Mole_sauce.jpg" },
+    "Risotto":             { fact: "Risotto requires constant stirring because the friction of rice grains rubbing together releases starch — that's what creates the creamy texture, not cream. Adding cream to risotto is considered a cardinal sin by Italian chefs who call it 'risotto mantecato' when done right.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Porcini_risotto.jpg/1280px-Porcini_risotto.jpg" },
+    "Carbonara":           { fact: "Real Roman carbonara contains no cream — the sauce is made purely from eggs, Pecorino Romano, and the heat of the pasta water. The dish's name may come from 'carbone' (charcoal), either because it was popular with charcoal workers or because of the black pepper specks.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Fresh_made_Carbonara_with_Pancetta.jpg/1280px-Fresh_made_Carbonara_with_Pancetta.jpg" },
+    "Gyoza":               { fact: "Gyoza are Japan's take on Chinese jiaozi dumplings, brought back by Japanese soldiers stationed in Manchuria after World War II. Japanese gyoza are thinner-skinned and more garlicky than the Chinese original, and are typically pan-fried rather than boiled.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Gyoza_dumplings_by_Arria_Belli.jpg/1280px-Gyoza_dumplings_by_Arria_Belli.jpg" },
+    "Injera":              { fact: "Injera serves as both plate and utensil in Ethiopian cuisine — food is piled on top of it and pieces are torn off to scoop up stews. The fermentation of teff flour gives it a sourdough tang and creates a naturally spongy, porous texture perfect for absorbing sauces.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Injera.jpg/1280px-Injera.jpg" },
+    "Biryani":             { fact: "Biryani arrived in India with Mughal emperors in the 16th century and quickly split into dozens of regional varieties — Hyderabadi biryani layers raw meat and rice together, while Lucknawi biryani cooks them separately and then combines them. Over 50 distinct styles exist across India.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Chicken_biryani.jpg/1280px-Chicken_biryani.jpg" },
+    "Creme Brulee":        { fact: "The dramatic caramelised sugar crust of crème brûlée was traditionally made using a red-hot iron salamander held just above the surface — blowtorches are a modern convenience. The dish appears in a French cookbook from 1691, though the English and Catalan both claim to have invented it first.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Cr%C3%A8me_br%C3%BBl%C3%A9e_%281%29.jpg/1280px-Cr%C3%A8me_br%C3%BBl%C3%A9e_%281%29.jpg" },
+    "Tagine":              { fact: "The tagine pot is its own cooking technology — the conical lid captures steam and returns it as condensation to the base, essentially self-basting the food and requiring very little added water. The design has remained unchanged for over a thousand years.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Tajine_de_poulet_aux_olives.jpg/1280px-Tajine_de_poulet_aux_olives.jpg" },
+    "Edamame":             { fact: "Edamame means 'stem beans' in Japanese — they were traditionally sold still attached to their stalks so buyers could see the beans were fresh. They're harvested at precisely 80% maturity; left any longer, they harden into the dried soybeans used for tofu.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Edamame-by-ayustety.jpg/1280px-Edamame-by-ayustety.jpg" },
+    "Tzatziki":            { fact: "Tzatziki's key technique is squeezing almost all the water out of the cucumber before mixing — cucumber is over 95% water, and skipping this step turns the dip into a watery mess within minutes. Greek yogurt is also strained to concentrate its thickness and tang.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Tzatziki.jpg/1280px-Tzatziki.jpg" },
+    "Lobster Roll":        { fact: "The lobster roll was invented in Connecticut in the 1920s at a diner called Perry's — originally it was a hot buttered version, not the cold mayo version Maine later popularised. The debate between Connecticut-style (warm, buttered) and Maine-style (cold, mayo) is a genuine regional rivalry.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Lobster_Roll_%284028515046%29.jpg/1280px-Lobster_Roll_%284028515046%29.jpg" },
+    "Bao Bun":             { fact: "The soft steamed bao bun has been a staple in China for over 1,800 years — legend credits the inventor Zhuge Liang who needed to make offerings to gods but refused to use human heads, crafting buns filled with meat instead. Different regions fill them with everything from pork belly to custard.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Chinese_Pork_Bun.jpg/1280px-Chinese_Pork_Bun.jpg" },
+    "Arepas":              { fact: "Arepas have been eaten in what is now Colombia and Venezuela for at least 3,000 years — they were a staple of indigenous Chibcha people long before European contact. Colombia and Venezuela both passionately claim the arepa as their own national dish.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Arepas_colombianas.jpg/1280px-Arepas_colombianas.jpg" },
+    "Okonomiyaki":         { fact: "Okonomiyaki means 'grill what you like' — the name is a description of its infinite customisability. During World War II, when rice was scarce, the batter-based pancake became a crucial source of calories for Japanese civilians making do with whatever ingredients they could find.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Okonomiyaki.jpg/1280px-Okonomiyaki.jpg" },
+    "Souvlaki":            { fact: "Souvlaki is essentially the original Greek street food — ancient Greeks cooked meat on skewers over coals and sold it in the agora as far back as the Minoan civilisation around 1700 BC. Stone supports for skewers have been found at ancient Akrotiri on Santorini.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Souvlaki_over_a_grill.jpg/1280px-Souvlaki_over_a_grill.jpg" },
+    "Chili Con Carne":     { fact: "Chili con carne is not Mexican — it was invented in San Antonio, Texas, where 'Chili Queens' sold spiced beef stew from colourful market stalls in the 1800s. Mexico has officially declared it a foreign dish, and you'll rarely find it south of the border.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Chili_con_carne_02.jpg/1280px-Chili_con_carne_02.jpg" },
+    "Banh Mi":             { fact: "Banh mi is a direct product of French colonialism — the baguette was introduced to Vietnam by France in the 19th century, and Vietnamese bakers adapted it with a lighter, airier crust suited to the local flour and humidity, then filled it with Vietnamese flavours.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Banh_mi_-_Flickr_-_Alpha.jpg/1280px-Banh_mi_-_Flickr_-_Alpha.jpg" },
+    "Osso Buco":           { fact: "Osso buco means 'bone with a hole' in Italian, referring to the marrow-filled hole in the cross-cut veal shank. The marrow is considered the finest part of the dish, traditionally eaten with a small spoon at the end of the meal as a rich reward.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ossobuco_alla_milanese.jpg/1280px-Ossobuco_alla_milanese.jpg" },
+    "Laksa":               { fact: "Laksa exists in dozens of regional variations across Malaysia and Singapore, but the two main camps — coconut milk-based curry laksa and sour tamarind-based asam laksa — are so different that food writers argue they shouldn't share a name at all.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Assam_Laksa.jpg/1280px-Assam_Laksa.jpg" },
+    "Congee":              { fact: "Congee is perhaps the world's most efficient food — a small amount of rice is cooked in 10 times its volume of water, stretching meagre rations to feed many. Throughout Asian history it has been both healing sick-day food and festive celebratory dish.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Plain_congee.jpg/1280px-Plain_congee.jpg" },
+    "Calamari":            { fact: "The secret to tender fried calamari is cooking it either very quickly (under 2 minutes) or very slowly (over 30 minutes) — anything in between makes it rubbery. The squid's muscles seize up under heat, then slowly relax and tenderise during longer cooking.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Calamares_fritos.JPG/1280px-Calamares_fritos.JPG" },
+    "Tteokbokki":          { fact: "Tteokbokki was originally a royal court dish in the Joseon dynasty — a mild soy-sauce and beef version eaten by kings. The fiery red gochujang version beloved on Korean street food stalls today was only invented in the 1950s, transforming it completely.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Tteokbokki_with_fish_cakes_and_scallions.jpg/1280px-Tteokbokki_with_fish_cakes_and_scallions.jpg" },
+    "Bobotie":             { fact: "Bobotie is South Africa's unofficial national dish — a fragrant Cape Malay curry-like mince topped with a savoury custard. Its roots trace back to 17th-century Dutch colonisers who encountered spiced meat dishes in Batavia (now Jakarta) and brought the idea to South Africa.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Bobotie_-_south_african_national_dish.jpg/1280px-Bobotie_-_south_african_national_dish.jpg" },
+    "Rendang":             { fact: "Rendang is arguably the most flavour-complex dish in the world — it can contain over 40 spices and is cooked for 8–10 hours until all the liquid evaporates and the meat essentially fries in its own released fat. In 2011, CNN readers voted it the world's most delicious food.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Rendang_daging.jpg/1280px-Rendang_daging.jpg" },
+    "Yakitori":            { fact: "Yakitori stalls in Japan are incredibly specific — dedicated yakitoriya serve every part of the chicken on skewers, including cartilage, liver, heart, and skin. Each cut has its own name, recommended sauce or salt preference, and ideal cooking time.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Yakitori_2.jpg/1280px-Yakitori_2.jpg" },
+    "Croquettes":          { fact: "The French word 'croquette' comes from 'croquer' (to crunch) — named after the sound you make biting through the crisp breadcrumb shell. Originally a way to transform yesterday's leftover meat, the croquette was elevated to haute cuisine in the 18th century by French chef Marie-Antoine Carême.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Chicken_and_ham_croquettes.JPG/1280px-Chicken_and_ham_croquettes.JPG" },
+    "Adobo":               { fact: "Filipino adobo shares its name with but is completely unrelated to Mexican adobo — they were both named by Spanish colonisers for what they saw as a 'pickling' technique. The Filipino version uses vinegar, soy sauce, garlic, and bay leaves and is sometimes called the national dish of the Philippines.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Filipino_pork_adobo.jpg/1280px-Filipino_pork_adobo.jpg" },
+    "Pupusas":             { fact: "Pupusas are so central to Salvadoran identity that El Salvador has its own National Pupusa Day, celebrated on the second Sunday of November every year. Archaeologists believe pupusas have been eaten in the region for at least 2,000 years.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Salvadoran_cuisines.jpg/1280px-Salvadoran_cuisines.jpg" },
+    "Gado Gado":           { fact: "Gado gado's name likely comes from a Betawi word meaning 'mix mix' — it's Indonesia's most celebrated salad, combining raw and cooked vegetables with tofu, tempeh, hard-boiled eggs, and a generous pour of warm peanut sauce. The dish is a symbol of Indonesian unity.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Gado_Gado_Salad_%2814572781879%29.jpg/1280px-Gado_Gado_Salad_%2814572781879%29.jpg" },
+    "Chow Mein":           { fact: "Chow mein became so popular in America during the 19th-century railroad era that Chinese cooks fed to workers began adapting it for American tastes. The crispy noodle version sold in American-Chinese restaurants today bears little resemblance to any dish found in China.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Chow_mein_based_menu_item.jpg/1280px-Chow_mein_based_menu_item.jpg" },
+    "Profiteroles":        { fact: "Choux pastry — the foundation of profiteroles — is unique because it's cooked twice: first on the stovetop, then in the oven. The high water content in the dough turns to steam during baking, puffing the pastry hollow from the inside to create its characteristic cavity.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Profiteroles.jpg/1280px-Profiteroles.jpg" },
+    "Spanakopita":         { fact: "Phyllo dough, the backbone of spanakopita, is stretched so thin it should be nearly transparent — professional phyllo makers can stretch a single ball of dough across an entire dining table. The word 'phyllo' simply means 'leaf' in Greek.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Spanakopita_by_Steven_Lilley.jpg/1280px-Spanakopita_by_Steven_Lilley.jpg" },
+    "Beef Wellington":     { fact: "Beef Wellington's origin is murky — some credit the Duke of Wellington after the Battle of Waterloo, but others note the dish simply resembles a polished Wellington boot. No recipe called Beef Wellington appears in any cookbook before the 1960s, suggesting it's a relatively modern creation.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Beef_Wellington.jpg/1280px-Beef_Wellington.jpg" },
+    "Sukiyaki":            { fact: "The name sukiyaki may come from 'suki' (ploughshare) and 'yaki' (grilled) — Japanese farmers cooked thin slices of meat on agricultural tools over open fires during the Meiji era, when beef consumption was newly permitted after centuries of Buddhist prohibition.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Sukiyaki3.jpg/1280px-Sukiyaki3.jpg" },
+    "Mapo Tofu":           { fact: "Mapo tofu is named after its inventor — a pockmarked ('ma') old woman ('po') who ran a small restaurant in Chengdu in the Qing dynasty. Her signature silken tofu in chilli-bean sauce became so famous that the dish still carries her nickname over 150 years later.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Mapo_tofu_by_Marshall_Astor_in_Chengdu%2C_China.jpg/1280px-Mapo_tofu_by_Marshall_Astor_in_Chengdu%2C_China.jpg" },
+    "Nasi Goreng":         { fact: "Nasi goreng is Indonesia's national dish and President Sukarno's reported favourite comfort food — he apparently requested it for state banquets alongside foreign dignitaries. The key to its distinctive smoky flavour is cooking over a very high flame in a wok seasoned over years of use.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Nasi_goreng.jpg/1280px-Nasi_goreng.jpg" },
+    "Cacio e Pepe":        { fact: "Cacio e Pepe has only three ingredients — pasta, Pecorino Romano cheese, and black pepper — but is notoriously difficult to make. The cheese must be added off the heat with pasta water to form a smooth sauce; too hot and it clumps into an inedible mess.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Spaghetti_cacio_e_pepe.jpg/1280px-Spaghetti_cacio_e_pepe.jpg" },
+    "Croque Monsieur":     { fact: "The croque monsieur first appeared on a Parisian café menu in 1910 — the name translates to 'mister crunch', named after the satisfying sound of biting through the toasted bread. When a fried egg is added on top, it becomes a 'croque madame', named for the hat-like egg.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Croque_monsieur_%283%29.jpg/1280px-Croque_monsieur_%283%29.jpg" },
+    "Halo Halo":           { fact: "Halo halo means 'mix mix' in Filipino, and the dish is as chaotic as its name suggests — crushed ice, evaporated milk, sweetened beans, jellies, fruits, leche flan, and purple yam ice cream are all combined in one towering glass. It's the Philippines' answer to a sundae.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Halo_halo_%28Tagaytay%29.jpg/1280px-Halo_halo_%28Tagaytay%29.jpg" },
+    "Roti Canai":          { fact: "Roti canai's flaky layers come from the cook's theatrical dough-tossing technique — the dough is repeatedly stretched and folded, then spun in the air to create paper-thin sheets that, when layered and cooked in butter, produce hundreds of delicate flaky strata.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Roti_canai.jpg/1280px-Roti_canai.jpg" },
+    "Peach Cobbler":       { fact: "Cobbler got its name not from the shoemaker but from the cobbled, uneven surface of the biscuit topping as it bakes — it looks like a rough cobblestone road. American settlers invented it when they couldn't make proper pies without the right equipment in the frontier.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Peach_cobbler.jpg/1280px-Peach_cobbler.jpg" },
+    "Clafoutis":           { fact: "Traditional clafoutis from Limousin, France is made with whole unpitted cherries — the pits release an almond-like flavour into the batter during baking. Purists insist that pitting the cherries, while less of a choking hazard, ruins the authentic flavour entirely.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Clafoutis_Limousin-01.jpg/1280px-Clafoutis_Limousin-01.jpg" },
+    "Samosa":              { fact: "Samosas originated in Central Asia — the earliest known reference to them is in a 10th-century Persian poem calling them 'sanbosag'. They spread through trade routes to India where they were transformed, and today India produces millions of samosas daily, making it the world's most consumed snack.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Samosachutney.jpg/1280px-Samosachutney.jpg" },
+    "Meatballs":           { fact: "Meatballs exist in almost every culture on Earth — Swedish köttbullar, Spanish albóndigas, Turkish köfte, Chinese lion's head, and Italian-American spaghetti with meatballs all claim distinct origins. The IKEA cafeteria serves around 150 million Swedish meatballs per year.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Italian_meatballs_%282%29.jpg/1280px-Italian_meatballs_%282%29.jpg" },
+    "Tonkatsu":            { fact: "Tonkatsu was invented in Tokyo in 1899 at a Western-style restaurant called Rengatei, which adapted the European breaded cutlet using pork and Japanese breadcrumbs (panko). Panko's irregular, open texture absorbs less oil and creates a dramatically crispier crust than fine breadcrumbs.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Tonkatsu.jpg/1280px-Tonkatsu.jpg" },
+    "Soba":                { fact: "In Japan, eating soba noodles on New Year's Eve is a tradition called Toshikoshi soba — the long noodles symbolise a long life and the cutting of them represents leaving behind the hardships of the past year. The noodles must be slurped loudly; silence is considered bad form.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Zaru_soba_by_naotakem.jpg/1280px-Zaru_soba_by_naotakem.jpg" },
+    "Ful Medames":         { fact: "Ful medames may be the world's oldest continuously consumed dish — Egyptian texts mention it as far back as 2600 BC. Today it remains Egypt's most popular breakfast, eaten by tens of millions daily and sold from street carts in every Egyptian city.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Ful_Medames.jpg/1280px-Ful_Medames.jpg" },
+    "Chimichurri Steak":   { fact: "Chimichurri's exact origin is disputed — some say it's named after Basque immigrant 'Jimmy McCurry' who made the sauce for Argentine ranchers, while others trace it to indigenous herbs. What's certain is it became inseparable from Argentine asado culture in the 19th century.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Grilled_beef_with_chimichurri.jpg/1280px-Grilled_beef_with_chimichurri.jpg" },
+    "Beignets":            { fact: "New Orleans beignets were brought by French-Acadian settlers (Cajuns) in the 18th century and became central to the city's café culture. The Café Du Monde has been serving hot beignets buried under powdered sugar since 1862, 24 hours a day, 7 days a week.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Beignets_Caf%C3%A9_Du_Monde.jpg/1280px-Beignets_Caf%C3%A9_Du_Monde.jpg" },
+    "Okra Stew":           { fact: "Okra's slippery texture comes from a compound called mucilage — the same substance that makes it a natural thickener for stews and gumbo. The word 'gumbo' itself comes from 'ki ngombo', the Bantu word for okra, brought to America by enslaved Africans.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Obe_ila_alasepo_%28Yoruba_okra_soup%29.jpg/1280px-Obe_ila_alasepo_%28Yoruba_okra_soup%29.jpg" },
+    "Saag Paneer":         { fact: "Paneer is one of the only cheeses native to India — it's made by curdling hot milk with an acid like lemon juice, then pressing the curds. Unlike most cheeses, paneer doesn't melt when cooked, which is what allows it to hold its shape in a hot simmering saag sauce.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Saag_paneer_%28Indian_spinach_and_cheese%29.jpg/1280px-Saag_paneer_%28Indian_spinach_and_cheese%29.jpg" },
+    "Mooncake":            { fact: "Mooncakes played a role in Chinese revolutionary history — the Ming dynasty rebellion against Mongol rulers allegedly coordinated their uprising by hiding secret messages inside mooncakes distributed across the country, since Mongols didn't eat them.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Mooncake_%28Yue_bing%29.jpg/1280px-Mooncake_%28Yue_bing%29.jpg" },
+    "Mango Sticky Rice":   { fact: "The combination of sticky rice and mango only became widespread in the 20th century — before modern refrigeration, fresh mango was highly seasonal. Thai sticky rice is steamed over water in bamboo baskets, and the glutinous variety used contains no gluten at all, just extra starch.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Mango_with_Sticky_Rice.jpg/1280px-Mango_with_Sticky_Rice.jpg" },
+    "Fish Tacos":          { fact: "Fish tacos were popularised in Baja California, Mexico in the 1950s, likely influenced by Japanese immigrants who brought tempura-style battered frying techniques. The surfer community spreading north from Baja introduced them to California, where they exploded in the 1980s.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Fish_taco.jpg/1280px-Fish_taco.jpg" },
+    "Duck Confit":         { fact: "Duck confit was invented as a preservation method centuries before refrigeration — submerging duck legs in their own rendered fat and cooking them slowly kills bacteria, and the fat seal keeps air out for months. Preserved this way, confit actually improves in flavour over several weeks.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Recette_du_confit_de_canard.jpg/1280px-Recette_du_confit_de_canard.jpg" },
+    "Bouillabaisse":       { fact: "Traditional Marseille bouillabaisse must contain at least three specific Mediterranean fish — scorpionfish, sea robin, and John Dory — and is served in two courses: the broth first, then the fish. A 1980 charter signed by Marseille's top chefs legally defines what can be called bouillabaisse.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Bouillabaisse.jpg/1280px-Bouillabaisse.jpg" },
+    "Khachapuri":          { fact: "Khachapuri exists in dramatically different forms across Georgia's regions — the Adjarian version is a boat-shaped bread filled with cheese, butter, and a raw egg cracked in at the end. Georgians consider it so important that economists use the 'Khachapuri Index' to track inflation.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Khachapuri.jpg/1280px-Khachapuri.jpg" },
+    "Crab Cakes":          { fact: "Maryland blue crab cakes are protected by fierce regional pride — true Maryland crab cakes use minimal filler (just enough egg and breadcrumbs to hold them together) so the crab flavour dominates entirely. Using too much filler is considered an insult to the Chesapeake Bay.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Crab_cake.jpg/1280px-Crab_cake.jpg" },
+    "Pelmeni":             { fact: "Pelmeni are Russia's ultimate survival food — Siberian hunters would freeze large batches and carry them on expeditions, cooking them directly from frozen in boiling water. They're so portable that Russian soldiers in WWII sometimes carried them as rations.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Pelmeni_01.jpg/1280px-Pelmeni_01.jpg" },
+    "Oxtail Stew":         { fact: "Oxtail stew was originally a dish of poverty — the tail was the cheapest, least-desired part of the ox, left for those who couldn't afford better cuts. The long slow braising required transforms it into one of the most gelatinously rich, deeply flavoured stews in existence.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Oxtail_Stew_01.jpg/1280px-Oxtail_Stew_01.jpg" },
+    "Tamales":             { fact: "Tamales were the original portable food of Mesoamerican civilisation — Aztec and Mayan warriors and travellers carried them because they stayed fresh for days wrapped in their corn husks. Making tamales is traditionally a community event called a 'tamalada' where families gather to assemble them by the hundreds.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Tamale-_authentic_Mexican.jpg/1280px-Tamale-_authentic_Mexican.jpg" },
+    "Coq au Vin":          { fact: "Coq au vin literally means 'rooster in wine' — the original recipe used old, tough roosters that needed hours of slow braising in wine to become tender. Today's recipe uses chicken, which is far more tender, but the wine-braising method remains the same.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Coq_au_vin.jpg/1280px-Coq_au_vin.jpg" },
+    "Tibs":                { fact: "Tibs is one of the most beloved dishes in Ethiopia and comes in dozens of regional variations — from quickly sautéed tender cubes to slow-cooked versions with berbere spice paste. It's traditionally eaten communally from a shared platter called a 'gebeta' lined with injera.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Tibs_Ethiopian_restaurant.jpg/1280px-Tibs_Ethiopian_restaurant.jpg" },
+    "Yam Porridge":        { fact: "Yam porridge (asaro) is a cornerstone of Yoruba cuisine in Nigeria and holds deep cultural significance — it's often prepared for naming ceremonies, festivals, and communal gatherings. Nigerian yams are not the sweet potatoes sold in American supermarkets; true African yams are enormous, starchy, and subtly earthy.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Asaro_%28Yam_Porridge%29.jpg/1280px-Asaro_%28Yam_Porridge%29.jpg" },
+    "Mochi":               { fact: "Making traditional mochi requires pounding steamed rice with wooden mallets in a process called 'mochitsuki' — one person pounds while another folds the dough between strikes, requiring extraordinary trust and coordination. Mochi is so sticky it causes multiple choking deaths in Japan every New Year's season.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Mochi.jpg/1280px-Mochi.jpg" },
+    "Brigadeiro":          { fact: "Brigadeiro was invented in 1940s Brazil and named after Brigadier Eduardo Gomes, a military officer running for president whose supporters sold the sweets to fund his campaign. He lost the election, but the chocolate truffle became Brazil's most beloved confection.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Brigadeiro.jpg/1280px-Brigadeiro.jpg" },
+    "Tom Kha Gai":         { fact: "Tom kha gai's defining ingredient is galangal — not ginger, which it resembles. Galangal has a pinier, more citrusy flavour and a much harder texture that can crack a knife blade if you try to chop it like ginger. In Thai cuisine, it's sliced and left in the soup for flavour, not eaten.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Tom_kha_gai.jpg/1280px-Tom_kha_gai.jpg" },
+    "Chapati":             { fact: "Chapati is one of the world's most efficient foods — a single chapati requires only a handful of flour, a pinch of salt, and water, and cooks in under 2 minutes on a dry skillet. Billions of chapatis are made by hand daily across South Asia, making it one of humanity's most-consumed breads.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Chapati_with_curry.jpg/1280px-Chapati_with_curry.jpg" },
+    "Soondubu Jjigae":     { fact: "Soondubu jjigae uses the softest form of tofu available — 'sundubu' or uncurdled tofu, which is so delicate it's sold in tubes and poured directly into the boiling pot. The soup arrives at Korean tables at a vigorous boil, still sizzling in its stone pot.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Sundubu-jjigae.jpg/1280px-Sundubu-jjigae.jpg" },
+    "Kofta":               { fact: "Kofta is one of the oldest recorded meat dishes in the world — a 10th-century Arabic cookbook contains recipes for ground meat mixed with herbs and spices. The dish spread from the Middle East throughout the Ottoman Empire, becoming a cornerstone of cuisines from Morocco to India.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Kafta_Mishwiyyeh_%28Mixed_Kafta_Platter%29.jpg/1280px-Kafta_Mishwiyyeh_%28Mixed_Kafta_Platter%29.jpg" },
+    "Madeleines":          { fact: "Marcel Proust immortalised the madeleine in his novel 'In Search of Lost Time' — the taste of a madeleine dipped in tea triggers an involuntary flood of childhood memories. The 'Proustian madeleine' became a psychological term for any sensory experience that unlocks deep memory.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Madeleine_II.jpg/1280px-Madeleine_II.jpg" },
+    "Wiener Schnitzel":    { fact: "The thin, wide Wiener Schnitzel should be so large it hangs over the edges of the plate — in Vienna, being served a schnitzel that fits neatly on the plate is considered an insult. The veal must be pounded to just 4mm thickness before breading.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Wiener-Schnitzel02.jpg/1280px-Wiener-Schnitzel02.jpg" },
+    "Pea Soup":            { fact: "Swedish ärtosoppa has been eaten every Thursday since at least the Middle Ages — the Catholic tradition of fasting on Fridays meant a big meal on Thursday was essential. Even today, Swedish military canteens serve pea soup with pancakes every Thursday without exception.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Artsoppa.jpg/1280px-Artsoppa.jpg" },
+    "Gratin Dauphinois":   { fact: "True gratin dauphinois contains no cheese — the creamy, bubbling top comes entirely from the potatoes' own starch combining with cream and butter. Adding cheese is a regional variation that purists from the Dauphiné region of France reject entirely.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Gratin_dauphinois.jpg/1280px-Gratin_dauphinois.jpg" },
+    "Salted Caramel":      { fact: "Salted caramel was invented by French chocolatier Henri Le Roux in 1977 in Brittany — a region famous for its salted butter. He won the title of Best Confection in France in 1980 for his caramel au beurre salé, but the world only went truly mad for salted caramel after Pierre Hermé spread it globally in the 2000s.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Salted_caramel.jpg/1280px-Salted_caramel.jpg" },
+    "Perogies":            { fact: "Perogies in Ukrainian and Polish tradition are always made together — the assembly requires many hands to fill and seal quickly before the dough dries out. Community perogie-making sessions called 'perogie parties' are a beloved cultural tradition in Slavic immigrant communities worldwide.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Pierogi_z_miesem.jpg/1280px-Pierogi_z_miesem.jpg" },
+    "Cocido":              { fact: "Cocido madrileño is eaten in strict sequence across three courses from the same pot — first the broth as a soup, then the chickpeas and vegetables, and finally the meats. This 'three turns' (tres vuelcos) method of serving has been practised unchanged for centuries.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Cocido_madrileno.jpg/1280px-Cocido_madrileno.jpg" },
+    "Kokotxas":            { fact: "Kokotxas (cod cheeks) are considered the prized jewel of Basque cuisine — the gelatinous flesh from around the jaw of salt cod releases so much natural gelatin that the sauce thickens itself through a technique called 'pilpil'. Chefs shake the pan rhythmically to emulsify the gelatin into a silky sauce.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Bacalao_al_pil-pil.jpg/1280px-Bacalao_al_pil-pil.jpg" },
+    "Cheeseburger":        { fact: "The cheeseburger was invented in 1926 by a 16-year-old named Lionel Sternberger who dropped a slice of American cheese on a hamburger patty at his father's California diner 'just to see what would happen'. The experiment worked so well it changed fast food forever.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cheeseburger.jpg/1280px-Cheeseburger.jpg" },
+    "Pita Bread":          { fact: "Pita's pocket forms through a remarkable bit of oven physics — the intense heat (around 250°C) causes steam to puff the bread into a balloon in seconds, separating the layers. If the oven isn't hot enough, the bread stays flat, which is why home pita rarely has a proper pocket.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Pita_bread.jpg/1280px-Pita_bread.jpg" },
+    "Peking Ravioli":      { fact: "Peking Ravioli is a Boston phenomenon — Chinese-American chef Joyce Chen invented the name in the 1950s because she thought Bostonians would be more adventurous trying something called 'ravioli' than 'dumplings'. The strategy worked perfectly, and the name stuck.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Gyoza_dumplings_by_Arria_Belli.jpg/1280px-Gyoza_dumplings_by_Arria_Belli.jpg" },
+    "Stuffed Grape Leaves": { fact: "Stuffed grape leaves appear across the entire former Ottoman Empire under different names — dolma in Turkish, dolmades in Greek, warak dawali in Arabic. The word 'dolma' comes from the Turkish 'dolmak' meaning 'to be stuffed', and the dish is a symbol of the culinary legacy that stretches from Vienna to Baghdad.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Stuffed_grape_leaves_%28dolmades%29.jpg/1280px-Stuffed_grape_leaves_%28dolmades%29.jpg" },
+    "Baba Ghanoush":       { fact: "Baba ghanoush gets its smoky, complex flavour by charring the eggplant directly over an open flame until blackened — the outside burns while the inside steams. The name translates roughly to 'pampered daddy' in Arabic, allegedly because the dish was so soft and rich it was made for toothless old men.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Baba_ghanoush_-_Lebanese_restaurant.jpg/1280px-Baba_ghanoush_-_Lebanese_restaurant.jpg" },
+    "Kafta":               { fact: "Kafta (or kofta) is one of the most geographically widespread dishes in the world — variants of spiced ground meat on a skewer exist from Morocco to Bangladesh. Lebanese kafta is distinguished by its generous use of fresh parsley and onion mixed directly into the meat before grilling.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Kafta_Mishwiyyeh_%28Mixed_Kafta_Platter%29.jpg/1280px-Kafta_Mishwiyyeh_%28Mixed_Kafta_Platter%29.jpg" },
+    "Short Rib":           { fact: "Short ribs were once considered a throwaway butcher's cut — too tough for quick cooking and too fatty for respectable tables. The low-and-slow braising revolution transformed them into one of the most coveted restaurant cuts, with the connective collagen melting into a deeply luxurious sauce.", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Beef_Short_Ribs.jpg/1280px-Beef_Short_Ribs.jpg" },
+  };
+
+  const info = FOOD_INFO[target.name];
+  const fact = info?.fact || "A beloved dish with a fascinating history!";
+  const imgUrl = info?.img || null;
+
+  // Build share text — shows guess-by-guess colour grid, no food names revealed
+  function buildShareText() {
+    const resultEmoji = won ? '🏆' : '💀';
+    const guessLine = won
+      ? `${guesses.length}/${MAX_GUESSES}`
+      : `X/${MAX_GUESSES}`;
+    const FIELDS = ['origin','temp','state','group','meal','cookMethod','flavor','sweetSavory'];
+    const rows = guesses.map(g => {
+      return FIELDS.map(f => {
+        const status = compareCategory(f, g[f], target[f]);
+        return status === 'match' ? '🟩' : status === 'close' ? '🟨' : '⬜';
+      }).join('');
+    }).join('\n');
+    return `Food🍅le ${resultEmoji} ${guessLine}\n\n${rows}\n\nfoodle.game`;
+  }
+
+  if (won) {
+    banner.innerHTML = `
+      <div class="win-banner">
+        <div class="banner-title">Bon Appétit!</div>
+        <div class="banner-text">You found <strong>${target.name}</strong> in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}</div>
+        <button id="new-game-btn">Play Again</button>
+        <button class="share-btn" id="share-btn">📋 Share Results</button>
+      </div>
+    `;
+  } else {
+    banner.innerHTML = `
+      <div class="lose-banner">
+        <div class="banner-title">Out of Guesses</div>
+        <div class="banner-text">The dish was <strong>${target.name}</strong></div>
+        <button id="new-game-btn">Try Again</button>
+        <button class="share-btn" id="share-btn">📋 Share Results</button>
+      </div>
+    `;
+  }
+
+  document.getElementById('share-btn').addEventListener('click', () => {
+    const text = buildShareText();
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('share-btn');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '📋 Share Results';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {
+      // Fallback for browsers without clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = buildShareText();
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const btn = document.getElementById('share-btn');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Share Results'; btn.classList.remove('copied'); }, 2000);
+    });
+  });
+
+  // Append fun fact card
+  const card = document.createElement('div');
+  card.className = 'fun-fact-card';
+  card.innerHTML = `
+    ${imgUrl
+      ? `<img class="fun-fact-img" src="${imgUrl}" alt="${target.name}" onerror="this.parentElement.querySelector('.fun-fact-img-placeholder') && (this.style.display='none')">`
+      : `<div class="fun-fact-img-placeholder">📷 No image available</div>`
+    }
+    <div class="fun-fact-body">
+      <div class="fun-fact-label">✦ Fun Fact</div>
+      <div class="fun-fact-text">${fact}</div>
+    </div>
+  `;
+  banner.appendChild(card);
+
+  document.getElementById('new-game-btn').addEventListener('click', startGame);
+  document.getElementById('status-text').textContent = won ? 'Victory' : 'Defeat';
+}
+
+function submitGuess() {
+  if (gameOver) return;
+  const input = document.getElementById('guess-input');
+  const errMsg = document.getElementById('error-msg');
+  const val = input.value.trim().toLowerCase();
+  if (!val) {
+    errMsg.textContent = '• Enter a food name';
+    return;
+  }
+  const food = FOODS.find(f => f.name.toLowerCase() === val);
+  if (!food) {
+    errMsg.textContent = '• Not in our pantry — try another';
+    return;
+  }
+  if (guesses.find(g => g.name.toLowerCase() === val)) {
+    errMsg.textContent = '• Already guessed';
+    return;
+  }
+  errMsg.textContent = '';
+  guesses.push(food);
+  renderGuess(food);
+  input.value = '';
+  hideAutocomplete();
+  updateStatus();
+
+  if (food.name === target.name) {
+    setTimeout(() => endGame(true), 600);
+  } else if (guesses.length >= MAX_GUESSES) {
+    setTimeout(() => endGame(false), 600);
+  }
+}
+
+// Autocomplete
+const input = document.getElementById('guess-input');
+const autocomplete = document.getElementById('autocomplete');
+let activeIdx = -1;
+
+function showAutocomplete() {
+  const val = input.value.trim().toLowerCase();
+  if (!val) { hideAutocomplete(); return; }
+  const matches = FOODS
+    .filter(f => f.name.toLowerCase().includes(val))
+    .filter(f => !guesses.find(g => g.name === f.name))
+    .slice(0, 6);
+  if (matches.length === 0) { hideAutocomplete(); return; }
+  autocomplete.innerHTML = matches.map((f, i) =>
+    `<div class="autocomplete-item" data-name="${f.name}">${f.name}</div>`
+  ).join('');
+  autocomplete.classList.add('show');
+  activeIdx = -1;
+  autocomplete.querySelectorAll('.autocomplete-item').forEach(el => {
+    el.addEventListener('click', () => {
+      input.value = el.dataset.name;
+      hideAutocomplete();
+      submitGuess();
+    });
+  });
+}
+
+function hideAutocomplete() {
+  autocomplete.classList.remove('show');
+  activeIdx = -1;
+}
+
+input.addEventListener('input', showAutocomplete);
+input.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
+
+document.getElementById('submit-btn').addEventListener('click', submitGuess);
+input.addEventListener('keydown', (e) => {
+  const items = autocomplete.querySelectorAll('.autocomplete-item');
+  if (e.key === 'ArrowDown' && items.length) {
+    e.preventDefault();
+    activeIdx = (activeIdx + 1) % items.length;
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  } else if (e.key === 'ArrowUp' && items.length) {
+    e.preventDefault();
+    activeIdx = (activeIdx - 1 + items.length) % items.length;
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  } else if (e.key === 'Enter') {
+    if (activeIdx >= 0 && items[activeIdx]) {
+      input.value = items[activeIdx].dataset.name;
+      hideAutocomplete();
+    }
+    submitGuess();
+  } else if (e.key === 'Escape') {
+    hideAutocomplete();
+  }
+});
+
+// Pantry modal
+function openPantry() {
+  const grid = document.getElementById('pantry-grid');
+  const count = document.getElementById('pantry-count');
+  count.textContent = `${FOODS.length} foods in total`;
+  const sorted = [...FOODS].sort((a, b) => a.name.localeCompare(b.name));
+  grid.innerHTML = sorted.map(f => `<div class="pantry-item">${f.name}</div>`).join('');
+  document.getElementById('pantry-overlay').classList.add('open');
+}
+
+document.getElementById('pantry-btn').addEventListener('click', openPantry);
+document.getElementById('pantry-close').addEventListener('click', () => {
+  document.getElementById('pantry-overlay').classList.remove('open');
+});
+document.getElementById('pantry-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+// Hint modal — reveals the continent of the target food's origin
+const CONTINENT_LABELS = {
+  "Asia": "Asia 🌏", "Europe": "Europe 🌍",
+  "N.America": "North America 🌎", "S.America": "South America 🌎",
+  "Africa": "Africa 🌍", "M.East": "Middle East 🌍"
+};
+
+document.getElementById('hint-btn').addEventListener('click', () => {
+  const cont = CONTINENT[target.origin] || 'Unknown';
+  document.getElementById('hint-continent').textContent = CONTINENT_LABELS[cont] || cont;
+  document.getElementById('hint-sub').textContent = `Origin: ${target.origin} region`;
+  document.getElementById('hint-overlay').classList.add('open');
+});
+document.getElementById('hint-close').addEventListener('click', () => {
+  document.getElementById('hint-overlay').classList.remove('open');
+});
+document.getElementById('hint-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+startGame();
+</script>
+</body>
+</html>
